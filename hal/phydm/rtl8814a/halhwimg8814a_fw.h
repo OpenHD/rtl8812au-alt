@@ -29,7 +29,7 @@
 
 void
 ODM_ReadFirmware_MP_8814A_FW_AP(
-     struct dm_struct    *pDM_Odm,
+     struct PHY_DM_STRUCT    *pDM_Odm,
      u8       *pFirmware,
      u32       *pFirmwareSize
 );
@@ -43,7 +43,7 @@ extern u8 array_mp_8814a_fw_ap[];
 
 void
 ODM_ReadFirmware_MP_8814A_FW_NIC(
-     struct dm_struct    *pDM_Odm,
+     struct PHY_DM_STRUCT    *pDM_Odm,
      u8       *pFirmware,
      u32       *pFirmwareSize
 );

@@ -125,7 +125,6 @@ void rtw_ndev_notifier_unregister(void);
 void rtw_inetaddr_notifier_register(void);
 void rtw_inetaddr_notifier_unregister(void);
 
-#include "../os_dep/linux/rtw_proc.h"
 
 #ifdef CONFIG_IOCTL_CFG80211
 	#include "../os_dep/linux/ioctl_cfg80211.h"
@@ -156,7 +155,7 @@ void rtw_drv_stop_vir_ifaces(struct dvobj_priv *dvobj);
 void rtw_drv_free_vir_ifaces(struct dvobj_priv *dvobj);
 #endif
 
-void rtw_ndev_destructor(_nic_hdl ndev);
+void rtw_ndev_destructor(struct net_device *ndev);
 #ifdef CONFIG_ARP_KEEP_ALIVE
 int rtw_gw_addr_query(_adapter *padapter);
 #endif

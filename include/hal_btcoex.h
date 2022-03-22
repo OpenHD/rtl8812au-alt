@@ -37,7 +37,6 @@ void hal_btcoex_SetPgAntNum(PADAPTER padapter, u8 antNum);
 
 u8 hal_btcoex_Initialize(PADAPTER padapter);
 void hal_btcoex_PowerOnSetting(PADAPTER padapter);
-void hal_btcoex_AntInfoSetting(PADAPTER padapter);
 void hal_btcoex_PowerOffSetting(PADAPTER padapter);
 void hal_btcoex_PreLoadFirmware(PADAPTER padapter);
 void hal_btcoex_InitHwConfig(PADAPTER padapter, u8 bWifiOnly);
@@ -79,10 +78,6 @@ void hal_btcoex_SendScanNotify(PADAPTER, u8 type);
 void hal_btcoex_StackUpdateProfileInfo(void);
 void hal_btcoex_pta_off_on_notify(PADAPTER padapter, u8 bBTON);
 void hal_btcoex_SetAntIsolationType(PADAPTER padapter, u8 anttype);
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-	int hal_btcoex_AntIsolationConfig_ParaFile(IN PADAPTER	Adapter, IN char *pFileName);
-	int hal_btcoex_ParseAntIsolationConfigFile(PADAPTER Adapter, char	*buffer);
-#endif /* CONFIG_LOAD_PHY_PARA_FROM_FILE */
 u16 hal_btcoex_btreg_read(PADAPTER padapter, u8 type, u16 addr, u32 *data);
 u16 hal_btcoex_btreg_write(PADAPTER padapter, u8 type, u16 addr, u16 val);
 void hal_btcoex_set_rfe_type(u8 type);

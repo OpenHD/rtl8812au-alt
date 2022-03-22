@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -50,7 +50,7 @@ _ConfigChipOutEP_8814(
 
 	switch (NumOutPipe) {
 	case	4:
-		pHalData->OutEpQueueSel = TX_SELE_HQ | TX_SELE_LQ | TX_SELE_NQ | TX_SELE_EQ;
+		pHalData->OutEpQueueSel = TX_SELE_HQ | TX_SELE_LQ | TX_SELE_NQ;
 		pHalData->OutEpNumber = 4;
 		break;
 	case	3:
@@ -277,7 +277,7 @@ static u32 _InitPowerOn_8814AU(_adapter *padapter)
 	u8	u1btmp = rtw_read8(padapter, 0x10C2);
 	rtw_write8(padapter, 0x10C2, (u1btmp | BIT1));
 
-	if(!HalPwrSeqCmdParsing(padapter, PWR_CUT_TESTCHIP_MSK, PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK, Rtl8814A_NIC_ENABLE_FLOW))
+	if(!HalPwrSeqCmdParsing(padapter, ~PWR_CUT_TESTCHIP_MSK, PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK, Rtl8814A_NIC_ENABLE_FLOW))
 		return _FAIL;
 
 
@@ -319,7 +319,7 @@ _InitInterrupt_8814AU(
 static void _InitID_8814A(IN  PADAPTER Adapter)
 {
 //	hal_init_macaddr(Adapter);//set mac_address
-	//rtw_restore_mac_addr(Adapter);
+	rtw_restore_mac_addr(Adapter);
 }
 
 static VOID
@@ -595,8 +595,8 @@ _InitMacConfigure_8814A(
 	rtw_write32(Adapter, REG_RRSR, regRRSR);
 
 	// Retry Limit
-	value16 = BIT_LRL(0x30) | BIT_SRL(0x30);
-	rtw_write16(Adapter, REG_RETRY_LIMIT, value16);
+	value16 = _LRL(0x30) | _SRL(0x30);
+	rtw_write16(Adapter, REG_RETRY_LIMIT_8814A, value16);
 	
 	pHalData->ReceiveConfig = RCR_APM | RCR_AM | RCR_AB |RCR_CBSSID_DATA| RCR_CBSSID_BCN| RCR_APP_ICV | RCR_AMF | RCR_HTC_LOC_CTRL | RCR_APP_MIC | RCR_APP_PHYST_RXFF;
 	pHalData->ReceiveConfig |= FORCEACK;
@@ -700,10 +700,10 @@ _InitBeaconMaxError_8814A(
 }
 
 
-#ifdef CONFIG_RTW_LED
+#ifdef CONFIG_LED
 static void _InitHWLed(PADAPTER Adapter)
 {
-	struct led_priv *pledpriv = adapter_to_led(Adapter);
+	struct led_priv *pledpriv = &(Adapter->ledpriv);
 	
 	if( pledpriv->LedStrategy != HW_LED)
 		return;
@@ -1474,7 +1474,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC02);
 #endif	// CONFIG_CONCURRENT_MODE || CONFIG_TX_MCAST2UNI
 	
 
-#ifdef CONFIG_RTW_LED
+#ifdef CONFIG_LED
 	_InitHWLed(Adapter);
 #endif //CONFIG_LED
 
@@ -1710,7 +1710,7 @@ hal_carddisable_8814(
 	rtw_write8(Adapter, REG_CR_8814A, 0x0);
 
 	// Card disable power action flow
-	HalPwrSeqCmdParsing(Adapter, PWR_CUT_TESTCHIP_MSK, PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK, Rtl8814A_NIC_DISABLE_FLOW);
+	HalPwrSeqCmdParsing(Adapter, ~PWR_CUT_TESTCHIP_MSK, PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK, Rtl8814A_NIC_DISABLE_FLOW);
 
 	GET_HAL_DATA(Adapter)->bFWReady = _FALSE;
 	
@@ -1776,77 +1776,59 @@ u32 rtl8814au_hal_deinit(PADAPTER Adapter)
 			if((pwrctl->bHWPwrPindetect ) && (pwrctl->bHWPowerdown))
 				rtl8814au_hw_power_down(Adapter);
 		}
-	}		
+	}
 	return _SUCCESS;
  }
 
 
 unsigned int rtl8814au_inirp_init(PADAPTER Adapter)
-{	
-	u8 i;	
+{
+	u8 i;
 	struct recv_buf *precvbuf;
 	uint	status;
 	struct dvobj_priv *pdev= adapter_to_dvobj(Adapter);
 	struct intf_hdl * pintfhdl=&Adapter->iopriv.intf;
-	struct recv_priv *precvpriv = &(Adapter->recvpriv);	
+	struct recv_priv *precvpriv = &(Adapter->recvpriv);
 	u32 (*_read_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
-#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(Adapter);
-	u32 (*_read_interrupt)(struct intf_hdl *pintfhdl, u32 addr);
-#endif
 
 	_read_port = pintfhdl->io_ops._read_port;
 
 	status = _SUCCESS;
 
-	RTW_INFO("===> usb_inirp_init \n");	
-		
+	RT_TRACE(_module_hci_hal_init_c_,_drv_info_,("===> usb_inirp_init \n"));
+
 	precvpriv->ff_hwaddr = RECV_BULK_IN_ADDR;
 
-	//issue Rx irp to receive data	
-	precvbuf = (struct recv_buf *)precvpriv->precv_buf;	
+	//issue Rx irp to receive data
+	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	for(i=0; i<NR_RECVBUFF; i++)
 	{
 		if(_read_port(pintfhdl, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf) == _FALSE )
 		{
-			RTW_ERR("usb_rx_init: usb_read_port error \n");
+			RT_TRACE(_module_hci_hal_init_c_,_drv_err_,("usb_rx_init: usb_read_port error \n"));
 			status = _FAIL;
 			goto exit;
 		}
-		
-		precvbuf++;		
+
+		precvbuf++;
 		precvpriv->free_recv_buf_queue_cnt--;
 	}
 
-#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
-	if (pdev->RtInPipe[REALTEK_USB_IN_INT_EP_IDX] != 0x05) {
-		status = _FAIL;
-		RTW_INFO("%s =>Warning !! Have not USB Int-IN pipe, RtIntInPipe(%d)!!!\n", __func__, pdev->RtInPipe[REALTEK_USB_IN_INT_EP_IDX]);
-		goto exit;
-	}	
-	_read_interrupt = pintfhdl->io_ops._read_interrupt;
-	if(_read_interrupt(pintfhdl, RECV_INT_IN_ADDR) == _FALSE )
-	{
-		RTW_ERR("usb_rx_init: usb_read_interrupt error \n");
-		status = _FAIL;
-	}
-#endif
-
 exit:
-	
-	RTW_INFO("<=== usb_inirp_init \n");
+
+	RT_TRACE(_module_hci_hal_init_c_,_drv_info_,("<=== usb_inirp_init \n"));
 
 	return status;
 
 }
 
 unsigned int rtl8814au_inirp_deinit(PADAPTER Adapter)
-{	
-	RTW_INFO("\n ===> usb_rx_deinit \n");
-	
+{
+	RT_TRACE(_module_hci_hal_init_c_,_drv_info_,("\n ===> usb_rx_deinit \n"));
+
 	rtw_read_port_cancel(Adapter);
 
-	RTW_INFO("\n <=== usb_rx_deinit \n");
+	RT_TRACE(_module_hci_hal_init_c_,_drv_info_,("\n <=== usb_rx_deinit \n"));
 
 	return _SUCCESS;
 }
@@ -1869,8 +1851,8 @@ hal_ReadIDs_8814AU(
 	{
 		pHalData->EEPROMVID = EF2Byte( *(pu2Byte)&PROMContent[EEPROM_VID_8814AU] );
 		pHalData->EEPROMPID = EF2Byte( *(pu2Byte)&PROMContent[EEPROM_PID_8814AU] );		
-		
-		// Customer ID, 0x00 and 0xff are reserved for Realtek. 		
+
+		// Customer ID, 0x00 and 0xff are reserved for Realtek.
 		pHalData->EEPROMCustomerID = *(pu1Byte)&PROMContent[EEPROM_CustomID_8814];
 		pHalData->EEPROMSubCustomerID = EEPROM_Default_SubCustomerID;
 	}
@@ -1879,11 +1861,11 @@ hal_ReadIDs_8814AU(
 		pHalData->EEPROMVID 			= EEPROM_Default_VID;
 		pHalData->EEPROMPID 			= EEPROM_Default_PID;
 
-		// Customer ID, 0x00 and 0xff are reserved for Realtek. 		
+		// Customer ID, 0x00 and 0xff are reserved for Realtek.
 		pHalData->EEPROMCustomerID		= EEPROM_Default_CustomerID;
 		pHalData->EEPROMSubCustomerID	= EEPROM_Default_SubCustomerID;
 	}
-	
+
 	RTW_INFO("VID = 0x%04X, PID = 0x%04X\n", pHalData->EEPROMVID, pHalData->EEPROMPID);
 	RTW_INFO("Customer ID: 0x%02X, SubCustomer ID: 0x%02X\n", pHalData->EEPROMCustomerID, pHalData->EEPROMSubCustomerID);
 }
@@ -1904,7 +1886,7 @@ hal_InitPGData_8814A(
 	//#if ((DEV_BUS_TYPE==RT_USB_INTERFACE || DEV_BUS_TYPE==RT_SDIO_INTERFACE))  && (MP_DRIVER != 1)
 		//if(hal_ReadeFuse_8814A(pAdapter) == _FAIL)
 	//#endif
-		
+
 		// Read EFUSE real map to shadow.
 		EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI, _FALSE);
 	}
@@ -1928,18 +1910,16 @@ hal_CustomizedBehavior_8814AU(
 	IN	PADAPTER	Adapter
 	)
 {
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);	
-	struct led_priv	*pledpriv = adapter_to_led(Adapter);
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+	struct led_priv	*pledpriv = &(Adapter->ledpriv);
 
-	
+
 	// Led mode
 	switch(pHalData->CustomerID)
 	{
 		case RT_CID_DEFAULT:
 			pledpriv->LedStrategy = SW_LED_MODE9;
-#ifdef CONFIG_RTW_SW_LED
 			pledpriv->bRegUseLed = _TRUE;
-#endif
 			break;
 
 		default:
@@ -1954,9 +1934,9 @@ hal_CustomizeByCustomerID_8814AU(
 	)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-	
+
 	RTW_INFO("PID= 0x%x, VID=  %x\n",pHalData->EEPROMPID,pHalData->EEPROMVID);
-	
+
 	//	Decide CustomerID according to VID/DID or EEPROM
 	switch(pHalData->EEPROMCustomerID)
 	{
@@ -1970,17 +1950,17 @@ hal_CustomizeByCustomerID_8814AU(
 			else if((pHalData->EEPROMVID == 0x0BFF) && (pHalData->EEPROMPID == 0x8160))
 			{
 				pHalData->CustomerID = RT_CID_CHINA_MOBILE;
-			}	
+			}
 			else if((pHalData->EEPROMVID == 0x0BDA) &&	(pHalData->EEPROMPID == 0x5088))
 				pHalData->CustomerID = RT_CID_CC_C;
-			
+
 			break;
 		case EEPROM_CID_WHQL:
 			//padapter->bInHctTest = _TRUE;
-	
+
 			//pMgntInfo->bSupportTurboMode = _FALSE;
 			//pMgntInfo->bAutoTurboBy8186 = _FALSE;
-	
+
 			//pMgntInfo->PowerSaveControl.bInactivePs = _FALSE;
 			//pMgntInfo->PowerSaveControl.bIPSModeBackup = _FALSE;
 			//pMgntInfo->PowerSaveControl.bLeisurePs = _FALSE;
@@ -2023,13 +2003,13 @@ ReadLEDSetting_8814AU(
 	IN	BOOLEAN		AutoloadFail
 	)
 {
-	struct led_priv *pledpriv = adapter_to_led(Adapter);
+	struct led_priv *pledpriv = &(Adapter->ledpriv);
 
-#ifdef CONFIG_RTW_SW_LED
+#ifdef CONFIG_SW_LED
 	pledpriv->bRegUseLed = _TRUE;
 #else // HW LED
 	pledpriv->LedStrategy = HW_LED;
-#endif //CONFIG_RTW_LED
+#endif //CONFIG_SW_LED
 }
 
 VOID
@@ -2377,13 +2357,13 @@ void rtl8814au_set_hal_ops(_adapter * padapter)
 
 	pHalFunc->init_recv_priv = &rtl8814au_init_recv_priv;
 	pHalFunc->free_recv_priv = &rtl8814au_free_recv_priv;
-#ifdef CONFIG_RTW_SW_LED
+#ifdef CONFIG_SW_LED
 	pHalFunc->InitSwLeds = &rtl8814au_InitSwLeds;
 	pHalFunc->DeInitSwLeds = &rtl8814au_DeInitSwLeds;
-//#else //case of hw led or no led
-//	pHalFunc->InitSwLeds = NULL;
-//	pHalFunc->DeInitSwLeds = NULL;
-#endif//CONFIG_RTW_LED
+#else //case of hw led or no led
+	pHalFunc->InitSwLeds = NULL;
+	pHalFunc->DeInitSwLeds = NULL;
+#endif//CONFIG_SW_LED
 	
 	pHalFunc->init_default_value = &rtl8814au_init_default_value;
 	pHalFunc->intf_chip_configure = &rtl8814au_interface_configure;

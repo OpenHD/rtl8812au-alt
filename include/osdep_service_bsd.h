@@ -77,7 +77,7 @@
 //	typedef	spinlock_t	_lock;
 	typedef	struct mtx	_lock;
 	typedef struct mtx 		_mutex;
-	typedef struct rtw_timer_list _timer;
+	typedef struct timer_list _timer;
 	struct list_head {
 	struct list_head *next, *prev;
 	};
@@ -128,7 +128,7 @@
  * See (linux_compat) processes.c
  *
  */
-struct rtw_timer_list {
+struct timer_list {
 	struct callout callout;
 	void (*function)(void *);
 	void *arg;

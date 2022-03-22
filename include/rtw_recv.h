@@ -15,10 +15,6 @@
 #ifndef _RTW_RECV_H_
 #define _RTW_RECV_H_
 
-#define RTW_RX_MSDU_ACT_NONE		0
-#define RTW_RX_MSDU_ACT_INDICATE	BIT0
-#define RTW_RX_MSDU_ACT_FORWARD		BIT1
-
 #ifdef PLATFORM_OS_XP
 	#ifdef CONFIG_SDIO_HCI
 		#define NR_RECVBUFF 1024/* 512 */ /* 128 */
@@ -32,8 +28,6 @@
 		#define NR_RECVBUFF (4)
 	#endif
 #else /* PLATFORM_LINUX /PLATFORM_BSD */
-
-#include <linux/interrupt.h>
 
 	#ifdef CONFIG_SINGLE_RECV_BUF
 		#define NR_RECVBUFF (1)
@@ -86,10 +80,20 @@
 #define RX_CMD_QUEUE				1
 #define RX_MAX_QUEUE				2
 
+static u8 SNAP_ETH_TYPE_IPX[2] = {0x81, 0x37};
+
+static u8 SNAP_ETH_TYPE_APPLETALK_AARP[2] = {0x80, 0xf3};
+static u8 SNAP_ETH_TYPE_APPLETALK_DDP[2] = {0x80, 0x9b};
+static u8 SNAP_ETH_TYPE_TDLS[2] = {0x89, 0x0d};
+static u8 SNAP_HDR_APPLETALK_DDP[3] = {0x08, 0x00, 0x07}; /* Datagram Delivery Protocol */
+
+static u8 oui_8021h[] = {0x00, 0x00, 0xf8};
+static u8 oui_rfc1042[] = {0x00, 0x00, 0x00};
+
 #define MAX_SUBFRAME_COUNT	64
+static u8 rtw_rfc1042_header[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 /* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-extern u8 rtw_bridge_tunnel_header[];
-extern u8 rtw_rfc1042_header[];
+static u8 rtw_bridge_tunnel_header[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 
 /* for Rx reordering buffer control */
 struct recv_reorder_ctrl {
@@ -156,6 +160,8 @@ struct rx_raw_rssi {
 	u8 ofdm_snr[4];
 };
 
+#define RXDESC_SIZE     24
+#define RXDESC_OFFSET RXDESC_SIZE
 
 #include "cmn_info/rtw_sta_info.h"
 
@@ -190,12 +196,6 @@ struct rx_pkt_attrib	{
 	u8	ta[ETH_ALEN];
 	u8	ra[ETH_ALEN];
 	u8	bssid[ETH_ALEN];
-#ifdef CONFIG_RTW_MESH
-	u8	msa[ETH_ALEN]; /* mesh sa */
-	u8	mda[ETH_ALEN]; /* mesh da */
-	u8 mesh_ctrl_present;
-	u8	mesh_ctrl_len; /* length of mesh control field */
-#endif
 
 	u8	ack_policy;
 
@@ -210,22 +210,14 @@ struct rx_pkt_attrib	{
 	u8	pkt_rpt_type;
 	u32 tsfl;
 	u32	MacIDValidEntry[2];	/* 64 bits present 64 entry. */
-	u8	ppdu_cnt;
-	u32 	free_cnt;		/* free run counter */
-	struct phydm_phyinfo_struct phy_info;
 
-#ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
-	/* checksum offload realted varaiables */
-	u8 csum_valid;		/* Checksum valid, 0: not check, 1: checked */
-	u8 csum_err;		/* Checksum Error occurs */
-#endif /* CONFIG_TCP_CSUM_OFFLOAD_RX */
-};
-
-#ifdef CONFIG_RTW_MESH
-#define RATTRIB_GET_MCTRL_LEN(rattrib) ((rattrib)->mesh_ctrl_len)
-#else
-#define RATTRIB_GET_MCTRL_LEN(rattrib) 0
+#ifdef CONFIG_RADIOTAP_WITH_RXDESC
+	u8	rxdesc[RXDESC_SIZE];
 #endif
+
+	u8	ppdu_cnt;
+	struct phydm_phyinfo_struct phy_info;
+};
 
 /* These definition is used for Rx packet reordering. */
 #define SN_LESS(a, b)		(((a-b) & 0x800) != 0)
@@ -234,20 +226,13 @@ struct rx_pkt_attrib	{
 /* #define REORDER_ENTRY_NUM	128 */
 #define REORDER_WAIT_TIME	(50) /* (ms) */
 
-#if defined(CONFIG_PLATFORM_RTK390X) && defined(CONFIG_USB_HCI)
-	#define RECVBUFF_ALIGN_SZ 32
-#else
-	#define RECVBUFF_ALIGN_SZ 8
-#endif
+#define RECVBUFF_ALIGN_SZ 8
 
 #ifdef CONFIG_TRX_BD_ARCH
 	#define RX_WIFI_INFO_SIZE	24
 #elif (defined(CONFIG_RTL8192E) || defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822B)) && defined(CONFIG_PCI_HCI)
 	#define RXBD_SIZE	sizeof(struct recv_stat)
 #endif
-
-#define RXDESC_SIZE	24
-#define RXDESC_OFFSET RXDESC_SIZE
 
 #ifdef CONFIG_TRX_BD_ARCH
 struct rx_buf_desc {
@@ -391,14 +376,6 @@ struct recv_priv {
 	uint	ff_hwaddr;
 	ATOMIC_T	rx_pending_cnt;
 
-#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
-#ifdef PLATFORM_LINUX
-	PURB	int_in_urb;
-#endif
-
-	u8	*int_in_buf;
-#endif /* CONFIG_USB_INTERRUPT_IN_PIPE */
-
 #endif
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_FREEBSD)
 #ifdef PLATFORM_FREEBSD
@@ -502,9 +479,6 @@ struct sta_recv_priv {
 	_queue defrag_q;	 /* keeping the fragment frame until defrag */
 
 	struct	stainfo_rxcache rxcache;
-	u16	bmc_tid_rxseq[16];
-	u16	nonqos_rxseq;
-	u16	nonqos_bmc_rxseq;
 
 	/* uint	sta_rx_bytes; */
 	/* uint	sta_rx_pkts; */
@@ -553,7 +527,7 @@ struct recv_buf {
 #endif
 
 #if defined(PLATFORM_LINUX)
-	_pkt *pskb;
+	struct sk_buff *pskb;
 #elif defined(PLATFORM_FREEBSD) /* skb solution */
 	struct sk_buff *pskb;
 #endif
@@ -577,7 +551,7 @@ struct recv_buf {
 */
 struct recv_frame_hdr {
 	_list	list;
-	_pkt *pkt;
+	struct sk_buff *pkt;
 
 	_adapter  *adapter;
 
@@ -796,9 +770,9 @@ __inline static u8 *recvframe_pull_tail(union recv_frame *precvframe, sint sz)
 
 
 
-__inline static _buffer *get_rxbuf_desc(union recv_frame *precvframe)
+__inline static unsigned char *get_rxbuf_desc(union recv_frame *precvframe)
 {
-	_buffer *buf_desc;
+	unsigned char *buf_desc;
 
 	if (precvframe == NULL)
 		return NULL;
@@ -820,13 +794,13 @@ __inline static union recv_frame *rxmem_to_recvframe(u8 *rxmem)
 
 }
 
-__inline static union recv_frame *pkt_to_recvframe(_pkt *pkt)
+__inline static union recv_frame *pkt_to_recvframe(struct sk_buff *pkt)
 {
 
 	u8 *buf_star;
 	union recv_frame *precv_frame;
 #ifdef PLATFORM_WINDOWS
-	_buffer *buf_desc;
+	unsigned char *buf_desc;
 	uint len;
 
 	NdisQueryPacket(pkt, NULL, NULL, &buf_desc, &len);
@@ -837,7 +811,7 @@ __inline static union recv_frame *pkt_to_recvframe(_pkt *pkt)
 	return precv_frame;
 }
 
-__inline static u8 *pkt_to_recvmem(_pkt *pkt)
+__inline static u8 *pkt_to_recvmem(struct sk_buff *pkt)
 {
 	/* return the rx_head */
 
@@ -847,7 +821,7 @@ __inline static u8 *pkt_to_recvmem(_pkt *pkt)
 
 }
 
-__inline static u8 *pkt_to_recvdata(_pkt *pkt)
+__inline static u8 *pkt_to_recvdata(struct sk_buff *pkt)
 {
 	/* return the rx_data */
 
@@ -868,8 +842,15 @@ __inline static s32 translate_percentage_to_dbm(u32 SignalStrengthIndex)
 {
 	s32	SignalPower; /* in dBm. */
 
+#ifdef CONFIG_SIGNAL_SCALE_MAPPING
+	/* Translate to dBm (x=0.5y-95). */
+	SignalPower = (s32)((SignalStrengthIndex + 1) >> 1);
+	SignalPower -= 95;
+#else
 	/* Translate to dBm (x=y-100) */
 	SignalPower = SignalStrengthIndex - 100;
+#endif
+
 	return SignalPower;
 }
 
@@ -881,6 +862,5 @@ extern void  mgt_dispatcher(_adapter *padapter, union recv_frame *precv_frame);
 
 u8 adapter_allow_bmc_data_rx(_adapter *adapter);
 s32 pre_recv_entry(union recv_frame *precvframe, u8 *pphy_status);
-void count_rx_stats(_adapter *padapter, union recv_frame *prframe, struct sta_info *sta);
 
 #endif

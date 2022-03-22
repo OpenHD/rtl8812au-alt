@@ -178,29 +178,29 @@ static u8 crc32_reverseBit(u8 data)
 
 static void crc32_init(void)
 {
-	int i, j;
-	u32 c;
-	u8 *p = (u8 *)&c, *p1;
-	u8 k;
-
 	if (bcrc32initialized == 1)
 		goto exit;
+	else {
+		sint i, j;
+		u32 c;
+		u8 *p = (u8 *)&c, *p1;
+		u8 k;
 
-	c = 0x12340000;
+		c = 0x12340000;
 
-	for (i = 0; i < 256; ++i) {
-		k = crc32_reverseBit((u8)i);
-		for (c = ((u32)k) << 24, j = 8; j > 0; --j)
-			c = c & 0x80000000 ? (c << 1) ^ CRC32_POLY : (c << 1);
-		p1 = (u8 *)&crc32_table[i];
+		for (i = 0; i < 256; ++i) {
+			k = crc32_reverseBit((u8)i);
+			for (c = ((u32)k) << 24, j = 8; j > 0; --j)
+				c = c & 0x80000000 ? (c << 1) ^ CRC32_POLY : (c << 1);
+			p1 = (u8 *)&crc32_table[i];
 
-		p1[0] = crc32_reverseBit(p[3]);
-		p1[1] = crc32_reverseBit(p[2]);
-		p1[2] = crc32_reverseBit(p[1]);
-		p1[3] = crc32_reverseBit(p[0]);
+			p1[0] = crc32_reverseBit(p[3]);
+			p1[1] = crc32_reverseBit(p[2]);
+			p1[2] = crc32_reverseBit(p[1]);
+			p1[3] = crc32_reverseBit(p[0]);
+		}
+		bcrc32initialized = 1;
 	}
-	bcrc32initialized = 1;
-
 exit:
 	return;
 }
@@ -218,6 +218,7 @@ static u32 getcrc32(u8 *buf, sint len)
 		crc = crc32_table[(crc ^ *p) & 0xff] ^ (crc >> 8);
 	return ~crc;    /* transmit complement, per CRC-32 spec */
 }
+
 
 /*
 	Need to consider the fragment  situation
@@ -238,6 +239,7 @@ void rtw_wep_encrypt(_adapter *padapter, u8 *pxmitframe)
 	struct	pkt_attrib	*pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
+
 
 
 	if (((struct xmit_frame *)pxmitframe)->buf_addr == NULL)
@@ -980,6 +982,13 @@ static void next_key(u8 *key, sint round);
 static void byte_sub(u8 *in, u8 *out);
 static void shift_row(u8 *in, u8 *out);
 static void mix_column(u8 *in, u8 *out);
+#ifndef PLATFORM_FREEBSD
+static void add_round_key(u8 *shiftrow_in,
+			  u8 *mcol_in,
+			  u8 *block_in,
+			  sint round,
+			  u8 *out);
+#endif /* PLATFORM_FREEBSD */
 static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext);
 
 
@@ -1176,11 +1185,11 @@ static void construct_mic_iv(
 		mic_iv[1] = mpdu[24] & 0x0f;   /* mute bits 7-4   */
 	if (!qc_exists)
 		mic_iv[1] = 0x00;
-#if defined(CONFIG_IEEE80211W) || defined(CONFIG_RTW_MESH)
+#ifdef CONFIG_IEEE80211W
 	/* 802.11w management frame should set management bit(4) */
 	if (frtype == WIFI_MGT_TYPE)
 		mic_iv[1] |= BIT(4);
-#endif
+#endif /* CONFIG_IEEE80211W */
 	for (i = 2; i < 8; i++)
 		mic_iv[i] = mpdu[i + 8];                    /* mic_iv[2:7] = A2[0:5] = mpdu[10:15] */
 #ifdef CONSISTENT_PN_ORDER
@@ -1210,12 +1219,12 @@ static void construct_mic_header1(
 {
 	mic_header1[0] = (u8)((header_length - 2) / 256);
 	mic_header1[1] = (u8)((header_length - 2) % 256);
-#if defined(CONFIG_IEEE80211W) || defined(CONFIG_RTW_MESH)
+#ifdef CONFIG_IEEE80211W
 	/* 802.11w management frame don't AND subtype bits 4,5,6 of frame control field */
 	if (frtype == WIFI_MGT_TYPE)
 		mic_header1[2] = mpdu[0];
 	else
-#endif
+#endif /* CONFIG_IEEE80211W */
 		mic_header1[2] = mpdu[0] & 0xcf;    /* Mute CF poll & CF ack bits */
 
 	mic_header1[3] = mpdu[1] & 0xc7;    /* Mute retry, more data and pwr mgt bits */
@@ -1311,11 +1320,11 @@ static void construct_ctr_preload(
 		ctr_preload[1] = mpdu[30] & 0x0f;   /* QoC_Control */
 	if (qc_exists && !a4_exists)
 		ctr_preload[1] = mpdu[24] & 0x0f;
-#if defined(CONFIG_IEEE80211W) || defined(CONFIG_RTW_MESH)
+#ifdef CONFIG_IEEE80211W
 	/* 802.11w management frame should set management bit(4) */
 	if (frtype == WIFI_MGT_TYPE)
 		ctr_preload[1] |= BIT(4);
-#endif
+#endif /* CONFIG_IEEE80211W */
 	for (i = 2; i < 8; i++)
 		ctr_preload[i] = mpdu[i + 8];                       /* ctr_preload[2:7] = A2[0:5] = mpdu[10:15] */
 #ifdef CONSISTENT_PN_ORDER
@@ -1385,7 +1394,8 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 		((frtype | frsubtype) == WIFI_DATA_CFPOLL) ||
 		((frtype | frsubtype) == WIFI_DATA_CFACKPOLL)) {
 		qc_exists = 1;
-		if (hdrlen != WLAN_HDR_A3_QOS_LEN && hdrlen != WLAN_HDR_A4_QOS_LEN)
+		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
+
 			hdrlen += 2;
 	}
 	/* add for CONFIG_IEEE80211W, none 11w also can use */
@@ -1394,7 +1404,8 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 		  (frsubtype == 0x09) ||
 		  (frsubtype == 0x0a) ||
 		  (frsubtype == 0x0b))) {
-		if (hdrlen != WLAN_HDR_A3_QOS_LEN && hdrlen != WLAN_HDR_A4_QOS_LEN)
+		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
+
 			hdrlen += 2;
 		qc_exists = 1;
 	} else
@@ -1704,7 +1715,8 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 		((frtype | frsubtype) == WIFI_DATA_CFPOLL) ||
 		((frtype | frsubtype) == WIFI_DATA_CFACKPOLL)) {
 		qc_exists = 1;
-		if (hdrlen != WLAN_HDR_A3_QOS_LEN && hdrlen != WLAN_HDR_A4_QOS_LEN)
+		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
+
 			hdrlen += 2;
 	} /* only for data packet . add for CONFIG_IEEE80211W, none 11w also can use */
 	else if ((frtype == WIFI_DATA) &&
@@ -1712,7 +1724,8 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 		  (frsubtype == 0x09) ||
 		  (frsubtype == 0x0a) ||
 		  (frsubtype == 0x0b))) {
-		if (hdrlen != WLAN_HDR_A3_QOS_LEN && hdrlen != WLAN_HDR_A4_QOS_LEN)
+		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
+
 			hdrlen += 2;
 		qc_exists = 1;
 	} else
@@ -1920,6 +1933,7 @@ u32	rtw_aes_decrypt(_adapter *padapter, u8 *precvframe)
 
 
 	sint		length;
+	u32	prwskeylen;
 	u8	*pframe, *prwskey;	/* , *payload,*iv */
 	struct	sta_info		*stainfo;
 	struct	rx_pkt_attrib	*prxattrib = &((union recv_frame *)precvframe)->u.hdr.attrib;
@@ -1940,11 +1954,7 @@ u32	rtw_aes_decrypt(_adapter *padapter, u8 *precvframe)
 
 				/* RTW_INFO("rx bc/mc packets, to perform sw rtw_aes_decrypt\n"); */
 				/* prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey; */
-				if ((!MLME_IS_MESH(padapter) && psecuritypriv->binstallGrpkey == _FALSE)
-					#ifdef CONFIG_RTW_MESH
-					|| !(stainfo->gtk_bmp | BIT(prxattrib->key_index))
-					#endif
-				) {
+				if (psecuritypriv->binstallGrpkey == _FALSE) {
 					res = _FAIL;
 
 					if (start == 0)
@@ -1976,20 +1986,12 @@ u32	rtw_aes_decrypt(_adapter *padapter, u8 *precvframe)
 				no_gkey_bc_cnt = 0;
 				no_gkey_mc_cnt = 0;
 
-				#ifdef CONFIG_RTW_MESH
-				if (MLME_IS_MESH(padapter)) {
-					/* TODO: multiple GK? */
-					prwskey = &stainfo->gtk.skey[0];
-				} else
-				#endif
-				{
-					prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
-					if (psecuritypriv->dot118021XGrpKeyid != prxattrib->key_index) {
-						RTW_DBG("not match packet_index=%d, install_index=%d\n"
-							, prxattrib->key_index, psecuritypriv->dot118021XGrpKeyid);
-						res = _FAIL;
-						goto exit;
-					}
+				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
+				if (psecuritypriv->dot118021XGrpKeyid != prxattrib->key_index) {
+					RTW_DBG("not match packet_index=%d, install_index=%d\n"
+						, prxattrib->key_index, psecuritypriv->dot118021XGrpKeyid);
+					res = _FAIL;
+					goto exit;
 				}
 			} else
 				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
@@ -2031,96 +2033,94 @@ exit:
 }
 
 #ifdef CONFIG_IEEE80211W
-u32	rtw_BIP_verify(_adapter *padapter, u8 *whdr_pos, sint flen
-	, const u8 *key, u16 keyid, u64* ipn)
+u32	rtw_BIP_verify(_adapter *padapter, u8 *precvframe)
 {
-	u8 *BIP_AAD, *mme;
+	struct rx_pkt_attrib *pattrib = &((union recv_frame *)precvframe)->u.hdr.attrib;
+	u8 *pframe;
+	u8 *BIP_AAD, *p;
 	u32	res = _FAIL;
 	uint len, ori_len;
-	u16 pkt_keyid = 0;
-	u64 pkt_ipn = 0;
 	struct rtw_ieee80211_hdr *pwlanhdr;
 	u8 mic[16];
-
-	mme = whdr_pos + flen - 18;
-	if (*mme != _MME_IE_)
-		return RTW_RX_HANDLED;
-
-	/* copy key index */
-	_rtw_memcpy(&pkt_keyid, mme + 2, 2);
-	pkt_keyid = le16_to_cpu(pkt_keyid);
-	if (pkt_keyid != keyid) {
-		RTW_INFO("BIP key index error!\n");
-		return _FAIL;
-	}
-
-	/* save packet number */
-	_rtw_memcpy(&pkt_ipn, mme + 4, 6);
-	pkt_ipn = le64_to_cpu(pkt_ipn);
-	/* BIP packet number should bigger than previous BIP packet */
-	if (pkt_ipn <= *ipn) { /* wrap around? */
-		RTW_INFO("replay BIP packet\n");
-		return _FAIL;
-	}
-
-	ori_len = flen - WLAN_HDR_A3_LEN + BIP_AAD_SIZE;
+	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	ori_len = pattrib->pkt_len - WLAN_HDR_A3_LEN + BIP_AAD_SIZE;
 	BIP_AAD = rtw_zmalloc(ori_len);
+
 	if (BIP_AAD == NULL) {
 		RTW_INFO("BIP AAD allocate fail\n");
 		return _FAIL;
 	}
-
+	/* PKT start */
+	pframe = (unsigned char *)((union recv_frame *)precvframe)->u.hdr.rx_data;
 	/* mapping to wlan header */
-	pwlanhdr = (struct rtw_ieee80211_hdr *)whdr_pos;
-
+	pwlanhdr = (struct rtw_ieee80211_hdr *)pframe;
 	/* save the frame body + MME */
-	_rtw_memcpy(BIP_AAD + BIP_AAD_SIZE, whdr_pos + WLAN_HDR_A3_LEN, flen - WLAN_HDR_A3_LEN);
+	_rtw_memcpy(BIP_AAD + BIP_AAD_SIZE, pframe + WLAN_HDR_A3_LEN, pattrib->pkt_len - WLAN_HDR_A3_LEN);
+	/* find MME IE pointer */
+	p = rtw_get_ie(BIP_AAD + BIP_AAD_SIZE, _MME_IE_, &len, pattrib->pkt_len - WLAN_HDR_A3_LEN);
+	/* Baron */
+	if (p) {
+		u16 keyid = 0;
+		u64 temp_ipn = 0;
+		/* save packet number */
+		_rtw_memcpy(&temp_ipn, p + 4, 6);
+		temp_ipn = le64_to_cpu(temp_ipn);
+		/* BIP packet number should bigger than previous BIP packet */
+		if (temp_ipn < pmlmeext->mgnt_80211w_IPN_rx) {
+			RTW_INFO("replay BIP packet\n");
+			goto BIP_exit;
+		}
+		/* copy key index */
+		_rtw_memcpy(&keyid, p + 2, 2);
+		keyid = le16_to_cpu(keyid);
+		if (keyid != padapter->securitypriv.dot11wBIPKeyid) {
+			RTW_INFO("BIP key index error!\n");
+			goto BIP_exit;
+		}
+		/* clear the MIC field of MME to zero */
+		_rtw_memset(p + 2 + len - 8, 0, 8);
 
-	/* point mme to the copy */
-	mme = BIP_AAD + ori_len - 18;
+		/* conscruct AAD, copy frame control field */
+		_rtw_memcpy(BIP_AAD, &pwlanhdr->frame_ctl, 2);
+		ClearRetry(BIP_AAD);
+		ClearPwrMgt(BIP_AAD);
+		ClearMData(BIP_AAD);
+		/* conscruct AAD, copy address 1 to address 3 */
+		_rtw_memcpy(BIP_AAD + 2, pwlanhdr->addr1, 18);
 
-	/* clear the MIC field of MME to zero */
-	_rtw_memset(mme + 10, 0, 8);
-
-	/* conscruct AAD, copy frame control field */
-	_rtw_memcpy(BIP_AAD, &pwlanhdr->frame_ctl, 2);
-	ClearRetry(BIP_AAD);
-	ClearPwrMgt(BIP_AAD);
-	ClearMData(BIP_AAD);
-	/* conscruct AAD, copy address 1 to address 3 */
-	_rtw_memcpy(BIP_AAD + 2, pwlanhdr->addr1, 18);
-
-	if (omac1_aes_128(key, BIP_AAD, ori_len, mic))
-		goto BIP_exit;
+		if (omac1_aes_128(padapter->securitypriv.dot11wBIPKey[padapter->securitypriv.dot11wBIPKeyid].skey
+				  , BIP_AAD, ori_len, mic))
+			goto BIP_exit;
 
 #if 0
-	/* management packet content */
-	{
-		int pp;
-		RTW_INFO("pkt: ");
-		for (pp = 0; pp < flen; pp++)
-			printk(" %02x ", whdr_pos[pp]);
-		RTW_INFO("\n");
-		/* BIP AAD + management frame body + MME(MIC is zero) */
-		RTW_INFO("AAD+PKT: ");
-		for (pp = 0; pp < ori_len; pp++)
-			RTW_INFO(" %02x ", BIP_AAD[pp]);
-		RTW_INFO("\n");
-		/* show the MIC result */
-		RTW_INFO("mic: ");
-		for (pp = 0; pp < 16; pp++)
-			RTW_INFO(" %02x ", mic[pp]);
-		RTW_INFO("\n");
-	}
+		/* management packet content */
+		{
+			int pp;
+			RTW_INFO("pkt: ");
+			for (pp = 0; pp < pattrib->pkt_len; pp++)
+				printk(" %02x ", pframe[pp]);
+			RTW_INFO("\n");
+			/* BIP AAD + management frame body + MME(MIC is zero) */
+			RTW_INFO("AAD+PKT: ");
+			for (pp = 0; pp < ori_len; pp++)
+				RTW_INFO(" %02x ", BIP_AAD[pp]);
+			RTW_INFO("\n");
+			/* show the MIC result */
+			RTW_INFO("mic: ");
+			for (pp = 0; pp < 16; pp++)
+				RTW_INFO(" %02x ", mic[pp]);
+			RTW_INFO("\n");
+		}
 #endif
+		/* MIC field should be last 8 bytes of packet (packet without FCS) */
+		if (_rtw_memcmp(mic, pframe + pattrib->pkt_len - 8, 8)) {
+			pmlmeext->mgnt_80211w_IPN_rx = temp_ipn;
+			res = _SUCCESS;
+		} else
+			RTW_INFO("BIP MIC error!\n");
 
-	/* MIC field should be last 8 bytes of packet (packet without FCS) */
-	if (_rtw_memcmp(mic, whdr_pos + flen - 8, 8)) {
-		*ipn = pkt_ipn;
-		res = _SUCCESS;
 	} else
-		RTW_INFO("BIP MIC error!\n");
-
+		res = RTW_RX_HANDLED;
 BIP_exit:
 
 	rtw_mfree(BIP_AAD, ori_len);
@@ -2129,8 +2129,186 @@ BIP_exit:
 #endif /* CONFIG_IEEE80211W */
 
 #ifndef PLATFORM_FREEBSD
-#if defined(CONFIG_TDLS)
+/* compress 512-bits */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
 
+static int sha256_compress(struct rtw_sha256_state *md, unsigned char *buf)
+{
+	u32 S[8], W[64], t0, t1;
+	u32 t;
+	int i;
+
+	/* copy state into S */
+	for (i = 0; i < 8; i++)
+		S[i] = md->state[i];
+
+	/* copy the state into 512-bits into W[0..15] */
+	for (i = 0; i < 16; i++)
+		W[i] = WPA_GET_BE32(buf + (4 * i));
+
+	/* fill W[16..63] */
+	for (i = 16; i < 64; i++) {
+		W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) +
+		       W[i - 16];
+	}
+
+	/* Compress */
+#define RND(a, b, c, d, e, f, g, h, i)                          do {\
+	t0 = h + Sigma1(e) + Ch(e, f, g) + K[i] + W[i];	\
+	t1 = Sigma0(a) + Maj(a, b, c);			\
+	d += t0;					\
+	h  = t0 + t1;	\
+	} while (0)
+
+	for (i = 0; i < 64; ++i) {
+		RND(S[0], S[1], S[2], S[3], S[4], S[5], S[6], S[7], i);
+		t = S[7];
+		S[7] = S[6];
+		S[6] = S[5];
+		S[5] = S[4];
+		S[4] = S[3];
+		S[3] = S[2];
+		S[2] = S[1];
+		S[1] = S[0];
+		S[0] = t;
+	}
+
+	/* feedback */
+	for (i = 0; i < 8; i++)
+		md->state[i] = md->state[i] + S[i];
+	return 0;
+}
+#endif
+
+/* Initialize the hash state */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+static void sha256_init(struct rtw_sha256_state *md)
+{
+	md->curlen = 0;
+	md->length = 0;
+	md->state[0] = 0x6A09E667UL;
+	md->state[1] = 0xBB67AE85UL;
+	md->state[2] = 0x3C6EF372UL;
+	md->state[3] = 0xA54FF53AUL;
+	md->state[4] = 0x510E527FUL;
+	md->state[5] = 0x9B05688CUL;
+	md->state[6] = 0x1F83D9ABUL;
+	md->state[7] = 0x5BE0CD19UL;
+}
+#endif
+/**
+   Process a block of memory though the hash
+   @param md     The hash state
+   @param in     The data to hash
+   @param inlen  The length of the data (octets)
+   @return CRYPT_OK if successful
+*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+static int sha256_process(struct rtw_sha256_state *md, unsigned char *in,
+			  unsigned long inlen)
+{
+	unsigned long n;
+#define block_size 64
+
+	if (md->curlen >= sizeof(md->buf))
+		return -1;
+
+	while (inlen > 0) {
+		if (md->curlen == 0 && inlen >= block_size) {
+			if (sha256_compress(md, (unsigned char *) in) < 0)
+				return -1;
+			md->length += block_size * 8;
+			in += block_size;
+			inlen -= block_size;
+		} else {
+			n = MIN(inlen, (block_size - md->curlen));
+			_rtw_memcpy(md->buf + md->curlen, in, n);
+			md->curlen += n;
+			in += n;
+			inlen -= n;
+			if (md->curlen == block_size) {
+				if (sha256_compress(md, md->buf) < 0)
+					return -1;
+				md->length += 8 * block_size;
+				md->curlen = 0;
+			}
+		}
+	}
+
+	return 0;
+}
+#endif
+
+/**
+   Terminate the hash to get the digest
+   @param md  The hash state
+   @param out [out] The destination of the hash (32 bytes)
+   @return CRYPT_OK if successful
+*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+static int sha256_done(struct rtw_sha256_state *md, unsigned char *out)
+{
+	int i;
+
+	if (md->curlen >= sizeof(md->buf))
+		return -1;
+
+	/* increase the length of the message */
+	md->length += md->curlen * 8;
+
+	/* append the '1' bit */
+	md->buf[md->curlen++] = (unsigned char) 0x80;
+
+	/* if the length is currently above 56 bytes we append zeros
+	 * then compress.  Then we can fall back to padding zeros and length
+	 * encoding like normal.
+	 */
+	if (md->curlen > 56) {
+		while (md->curlen < 64)
+			md->buf[md->curlen++] = (unsigned char) 0;
+		sha256_compress(md, md->buf);
+		md->curlen = 0;
+	}
+
+	/* pad upto 56 bytes of zeroes */
+	while (md->curlen < 56)
+		md->buf[md->curlen++] = (unsigned char) 0;
+
+	/* store length */
+	WPA_PUT_BE64(md->buf + 56, md->length);
+	sha256_compress(md, md->buf);
+
+	/* copy output */
+	for (i = 0; i < 8; i++)
+		WPA_PUT_BE32(out + (4 * i), md->state[i]);
+
+	return 0;
+}
+#endif
+/**
+ * sha256_vector - SHA256 hash for data vector
+ * @num_elem: Number of elements in the data vector
+ * @addr: Pointers to the data areas
+ * @len: Lengths of the data blocks
+ * @mac: Buffer for the hash
+ * Returns: 0 on success, -1 of failure
+ */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+static int sha256_vector(size_t num_elem, u8 *addr[], size_t *len,
+			 u8 *mac)
+{
+	struct rtw_sha256_state ctx;
+	size_t i;
+
+	sha256_init(&ctx);
+	for (i = 0; i < num_elem; i++)
+		if (sha256_process(&ctx, addr[i], len[i]))
+			return -1;
+	if (sha256_done(&ctx, mac))
+		return -1;
+	return 0;
+}
+#endif
 static u8 os_strlen(const char *s)
 {
 	const char *p = s;
@@ -2138,12 +2316,10 @@ static u8 os_strlen(const char *s)
 		p++;
 	return p - s;
 }
-#endif
 
-#if defined(CONFIG_TDLS) || defined(CONFIG_RTW_MESH_AEK)
-static int os_memcmp(const void *s1, const void *s2, u8 n)
+static int os_memcmp(void *s1, void *s2, u8 n)
 {
-	const unsigned char *p1 = s1, *p2 = s2;
+	unsigned char *p1 = s1, *p2 = s2;
 
 	if (n == 0)
 		return 0;
@@ -2158,8 +2334,79 @@ static int os_memcmp(const void *s1, const void *s2, u8 n)
 
 	return *p1 - *p2;
 }
-#endif
 
+/**
+ * hmac_sha256_vector - HMAC-SHA256 over data vector (RFC 2104)
+ * @key: Key for HMAC operations
+ * @key_len: Length of the key in bytes
+ * @num_elem: Number of elements in the data vector
+ * @addr: Pointers to the data areas
+ * @len: Lengths of the data blocks
+ * @mac: Buffer for the hash (32 bytes)
+ */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+static void hmac_sha256_vector(u8 *key, size_t key_len, size_t num_elem,
+			       u8 *addr[], size_t *len, u8 *mac)
+{
+	unsigned char k_pad[64]; /* padding - key XORd with ipad/opad */
+	unsigned char tk[32];
+	u8 *_addr[6];
+	size_t _len[6], i;
+
+	if (num_elem > 5) {
+		/*
+		 * Fixed limit on the number of fragments to avoid having to
+		 * allocate memory (which could fail).
+		 */
+		return;
+	}
+
+	/* if key is longer than 64 bytes reset it to key = SHA256(key) */
+	if (key_len > 64) {
+		sha256_vector(1, &key, &key_len, tk);
+		key = tk;
+		key_len = 32;
+	}
+
+	/* the HMAC_SHA256 transform looks like:
+	 *
+	 * SHA256(K XOR opad, SHA256(K XOR ipad, text))
+	 *
+	 * where K is an n byte key
+	 * ipad is the byte 0x36 repeated 64 times
+	 * opad is the byte 0x5c repeated 64 times
+	 * and text is the data being protected */
+
+	/* start out by storing key in ipad */
+	_rtw_memset(k_pad, 0, sizeof(k_pad));
+	_rtw_memcpy(k_pad, key, key_len);
+	/* XOR key with ipad values */
+	for (i = 0; i < 64; i++)
+		k_pad[i] ^= 0x36;
+
+	/* perform inner SHA256 */
+	_addr[0] = k_pad;
+	_len[0] = 64;
+	for (i = 0; i < num_elem; i++) {
+		_addr[i + 1] = addr[i];
+		_len[i + 1] = len[i];
+	}
+	sha256_vector(1 + num_elem, _addr, _len, mac);
+
+	_rtw_memset(k_pad, 0, sizeof(k_pad));
+	_rtw_memcpy(k_pad, key, key_len);
+	/* XOR key with opad values */
+	for (i = 0; i < 64; i++)
+		k_pad[i] ^= 0x5c;
+
+	/* perform outer SHA256 */
+	_addr[0] = k_pad;
+	_len[0] = 64;
+	_addr[1] = mac;
+	_len[1] = 32;
+	sha256_vector(2, _addr, _len, mac);
+}
+#endif
 #endif /* PLATFORM_FREEBSD */
 /**
  * sha256_prf - SHA256-based Pseudo-Random Function (IEEE 802.11r, 8.5.1.5.2)
@@ -2174,6 +2421,46 @@ static int os_memcmp(const void *s1, const void *s2, u8 n)
  * This function is used to derive new, cryptographically separate keys from a
  * given key.
  */
+#ifndef PLATFORM_FREEBSD /* Baron */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+static void sha256_prf(u8 *key, size_t key_len, char *label,
+		       u8 *data, size_t data_len, u8 *buf, size_t buf_len)
+{
+	u16 counter = 1;
+	size_t pos, plen;
+	u8 hash[SHA256_MAC_LEN];
+	u8 *addr[4];
+	size_t len[4];
+	u8 counter_le[2], length_le[2];
+
+	addr[0] = counter_le;
+	len[0] = 2;
+	addr[1] = (u8 *) label;
+	len[1] = os_strlen(label);
+	addr[2] = data;
+	len[2] = data_len;
+	addr[3] = length_le;
+	len[3] = sizeof(length_le);
+
+	WPA_PUT_LE16(length_le, buf_len * 8);
+	pos = 0;
+	while (pos < buf_len) {
+		plen = buf_len - pos;
+		WPA_PUT_LE16(counter_le, counter);
+		if (plen >= SHA256_MAC_LEN) {
+			hmac_sha256_vector(key, key_len, 4, addr, len,
+					   &buf[pos]);
+			pos += SHA256_MAC_LEN;
+		} else {
+			hmac_sha256_vector(key, key_len, 4, addr, len, hash);
+			_rtw_memcpy(&buf[pos], hash, plen);
+			break;
+		}
+		counter++;
+	}
+}
+#endif
+#endif /* PLATFORM_FREEBSD Baron */
 
 /* AES tables*/
 const u32 Te0[256] = {
@@ -2442,7 +2729,7 @@ static void rijndaelEncrypt(u32 rk[/*44*/], u8 pt[16], u8 ct[16])
 	PUTU32(ct + 12, s3);
 }
 
-static void *aes_encrypt_init(const u8 *key, size_t len)
+static void *aes_encrypt_init(u8 *key, size_t len)
 {
 	u32 *rk;
 	if (len != 16)
@@ -2492,12 +2779,12 @@ static void aes_encrypt_deinit(void *ctx)
  * OMAC1 was standardized with the name CMAC by NIST in a Special Publication
  * (SP) 800-38B.
  */
-static int omac1_aes_128_vector(const u8 *key, size_t num_elem,
-			 const u8 *addr[], const size_t *len, u8 *mac)
+static int omac1_aes_128_vector(u8 *key, size_t num_elem,
+				u8 *addr[], size_t *len, u8 *mac)
 {
 	void *ctx;
 	u8 cbc[AES_BLOCK_SIZE], pad[AES_BLOCK_SIZE];
-	const u8 *pos, *end;
+	u8 *pos, *end;
 	size_t i, e, left, total_len;
 
 	ctx = aes_encrypt_init(key, 16);
@@ -2565,236 +2852,11 @@ static int omac1_aes_128_vector(const u8 *key, size_t num_elem,
  * OMAC1 was standardized with the name CMAC by NIST in a Special Publication
  * (SP) 800-38B.
  */ /* modify for CONFIG_IEEE80211W */
-int omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
+int omac1_aes_128(u8 *key, u8 *data, size_t data_len, u8 *mac)
 {
 	return omac1_aes_128_vector(key, 1, &data, &data_len, mac);
 }
 #endif /* PLATFORM_FREEBSD Baron */
-
-#ifdef CONFIG_RTW_MESH_AEK
-/* for AES-SIV */
-#define os_memset _rtw_memset
-#define os_memcpy _rtw_memcpy
-#define os_malloc rtw_malloc
-#define bin_clear_free(bin, len) \
-	do { \
-		if (bin) { \
-			os_memset(bin, 0, len); \
-			rtw_mfree(bin, len); \
-		} \
-	} while (0)
-
-static const u8 zero[AES_BLOCK_SIZE];
-
-static void dbl(u8 *pad)
-{
-	int i, carry;
-
-	carry = pad[0] & 0x80;
-	for (i = 0; i < AES_BLOCK_SIZE - 1; i++)
-		pad[i] = (pad[i] << 1) | (pad[i + 1] >> 7);
-	pad[AES_BLOCK_SIZE - 1] <<= 1;
-	if (carry)
-		pad[AES_BLOCK_SIZE - 1] ^= 0x87;
-}
-
-static void xor(u8 *a, const u8 *b)
-{
-	int i;
-
-	for (i = 0; i < AES_BLOCK_SIZE; i++)
-		*a++ ^= *b++;
-}
-
-static void xorend(u8 *a, int alen, const u8 *b, int blen)
-{
-	int i;
-
-	if (alen < blen)
-		return;
-
-	for (i = 0; i < blen; i++)
-		a[alen - blen + i] ^= b[i];
-}
-
-static void pad_block(u8 *pad, const u8 *addr, size_t len)
-{
-	os_memset(pad, 0, AES_BLOCK_SIZE);
-	os_memcpy(pad, addr, len);
-
-	if (len < AES_BLOCK_SIZE)
-		pad[len] = 0x80;
-}
-
-static int aes_s2v(const u8 *key, size_t num_elem, const u8 *addr[],
-		   size_t *len, u8 *mac)
-{
-	u8 tmp[AES_BLOCK_SIZE], tmp2[AES_BLOCK_SIZE];
-	u8 *buf = NULL;
-	int ret;
-	size_t i;
-
-	if (!num_elem) {
-		os_memcpy(tmp, zero, sizeof(zero));
-		tmp[AES_BLOCK_SIZE - 1] = 1;
-		return omac1_aes_128(key, tmp, sizeof(tmp), mac);
-	}
-
-	ret = omac1_aes_128(key, zero, sizeof(zero), tmp);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < num_elem - 1; i++) {
-		ret = omac1_aes_128(key, addr[i], len[i], tmp2);
-		if (ret)
-			return ret;
-
-		dbl(tmp);
-		xor(tmp, tmp2);
-	}
-	if (len[i] >= AES_BLOCK_SIZE) {
-		buf = os_malloc(len[i]);
-		if (!buf)
-			return -ENOMEM;
-
-		os_memcpy(buf, addr[i], len[i]);
-		xorend(buf, len[i], tmp, AES_BLOCK_SIZE);
-		ret = omac1_aes_128(key, buf, len[i], mac);
-		bin_clear_free(buf, len[i]);
-		return ret;
-	}
-
-	dbl(tmp);
-	pad_block(tmp2, addr[i], len[i]);
-	xor(tmp, tmp2);
-
-	return omac1_aes_128(key, tmp, sizeof(tmp), mac);
-}
-
-/**
- * aes_128_ctr_encrypt - AES-128 CTR mode encryption
- * @key: Key for encryption (16 bytes)
- * @nonce: Nonce for counter mode (16 bytes)
- * @data: Data to encrypt in-place
- * @data_len: Length of data in bytes
- * Returns: 0 on success, -1 on failure
- */
-int aes_128_ctr_encrypt(const u8 *key, const u8 *nonce,
-			u8 *data, size_t data_len)
-{
-	void *ctx;
-	size_t j, len, left = data_len;
-	int i;
-	u8 *pos = data;
-	u8 counter[AES_BLOCK_SIZE], buf[AES_BLOCK_SIZE];
-
-	ctx = aes_encrypt_init(key, 16);
-	if (ctx == NULL)
-		return -1;
-	os_memcpy(counter, nonce, AES_BLOCK_SIZE);
-
-	while (left > 0) {
-		#if 0
-		aes_encrypt(ctx, counter, buf);
-		#else
-		aes_128_encrypt(ctx, counter, buf);
-		#endif
-
-		len = (left < AES_BLOCK_SIZE) ? left : AES_BLOCK_SIZE;
-		for (j = 0; j < len; j++)
-			pos[j] ^= buf[j];
-		pos += len;
-		left -= len;
-
-		for (i = AES_BLOCK_SIZE - 1; i >= 0; i--) {
-			counter[i]++;
-			if (counter[i])
-				break;
-		}
-	}
-	aes_encrypt_deinit(ctx);
-	return 0;
-}
-
-int aes_siv_encrypt(const u8 *key, const u8 *pw,
-		    size_t pwlen, size_t num_elem,
-		    const u8 *addr[], const size_t *len, u8 *out)
-{
-	const u8 *_addr[6];
-	size_t _len[6];
-	const u8 *k1 = key, *k2 = key + 16;
-	u8 v[AES_BLOCK_SIZE];
-	size_t i;
-	u8 *iv, *crypt_pw;
-
-	if (num_elem > ARRAY_SIZE(_addr) - 1)
-		return -1;
-
-	for (i = 0; i < num_elem; i++) {
-		_addr[i] = addr[i];
-		_len[i] = len[i];
-	}
-	_addr[num_elem] = pw;
-	_len[num_elem] = pwlen;
-
-	if (aes_s2v(k1, num_elem + 1, _addr, _len, v))
-		return -1;
-
-	iv = out;
-	crypt_pw = out + AES_BLOCK_SIZE;
-
-	os_memcpy(iv, v, AES_BLOCK_SIZE);
-	os_memcpy(crypt_pw, pw, pwlen);
-
-	/* zero out 63rd and 31st bits of ctr (from right) */
-	v[8] &= 0x7f;
-	v[12] &= 0x7f;
-	return aes_128_ctr_encrypt(k2, v, crypt_pw, pwlen);
-}
-
-int aes_siv_decrypt(const u8 *key, const u8 *iv_crypt, size_t iv_c_len,
-		    size_t num_elem, const u8 *addr[], const size_t *len,
-		    u8 *out)
-{
-	const u8 *_addr[6];
-	size_t _len[6];
-	const u8 *k1 = key, *k2 = key + 16;
-	size_t crypt_len;
-	size_t i;
-	int ret;
-	u8 iv[AES_BLOCK_SIZE];
-	u8 check[AES_BLOCK_SIZE];
-
-	if (iv_c_len < AES_BLOCK_SIZE || num_elem > ARRAY_SIZE(_addr) - 1)
-		return -1;
-	crypt_len = iv_c_len - AES_BLOCK_SIZE;
-
-	for (i = 0; i < num_elem; i++) {
-		_addr[i] = addr[i];
-		_len[i] = len[i];
-	}
-	_addr[num_elem] = out;
-	_len[num_elem] = crypt_len;
-
-	os_memcpy(iv, iv_crypt, AES_BLOCK_SIZE);
-	os_memcpy(out, iv_crypt + AES_BLOCK_SIZE, crypt_len);
-
-	iv[8] &= 0x7f;
-	iv[12] &= 0x7f;
-
-	ret = aes_128_ctr_encrypt(k2, iv, out, crypt_len);
-	if (ret)
-		return ret;
-
-	ret = aes_s2v(k1, num_elem + 1, _addr, _len, check);
-	if (ret)
-		return ret;
-	if (os_memcmp(check, iv_crypt, AES_BLOCK_SIZE) == 0)
-		return 0;
-
-	return -1;
-}
-#endif /* CONFIG_RTW_MESH_AEK */
 
 #ifdef CONFIG_TDLS
 void wpa_tdls_generate_tpk(_adapter *padapter, PVOID sta)

@@ -27,7 +27,6 @@
 
 	#if defined CONFIG_SDIO_HCI
 		#define NR_XMITBUFF	(16)
-		#define SDIO_TX_DIV_NUM (2)
 	#endif
 	#if defined(CONFIG_GSPI_HCI)
 		#define NR_XMITBUFF	(128)
@@ -81,18 +80,16 @@
 #ifdef CONFIG_SINGLE_XMIT_BUF
 	#define NR_XMIT_EXTBUFF	(1)
 #else
-	#define NR_XMIT_EXTBUFF	(32)
+	#define NR_XMIT_EXTBUFF	(64)
 #endif
 
 #ifdef CONFIG_RTL8812A
-	#define MAX_CMDBUF_SZ	(512 * 18)
+	#define MAX_CMDBUF_SZ	(512 * 17)
 #elif defined(CONFIG_RTL8723D) && defined(CONFIG_LPS_POFF)
 	#define MAX_CMDBUF_SZ	(128*70) /*(8960)*/
 #else
 	#define MAX_CMDBUF_SZ	(5120)	/* (4096) */
 #endif
-
-#define MAX_BEACON_LEN	512
 
 #define MAX_NUMBLKS		(1)
 
@@ -122,17 +119,16 @@
 
 #define WEP_IV(pattrib_iv, dot11txpn, keyidx)\
 	do {\
-		dot11txpn.val = (dot11txpn.val == 0xffffff) ? 0 : (dot11txpn.val + 1);\
 		pattrib_iv[0] = dot11txpn._byte_.TSC0;\
 		pattrib_iv[1] = dot11txpn._byte_.TSC1;\
 		pattrib_iv[2] = dot11txpn._byte_.TSC2;\
 		pattrib_iv[3] = ((keyidx & 0x3)<<6);\
+		dot11txpn.val = (dot11txpn.val == 0xffffff) ? 0 : (dot11txpn.val+1);\
 	} while (0)
 
 
 #define TKIP_IV(pattrib_iv, dot11txpn, keyidx)\
 	do {\
-		dot11txpn.val = dot11txpn.val == 0xffffffffffffULL ? 0 : (dot11txpn.val + 1);\
 		pattrib_iv[0] = dot11txpn._byte_.TSC1;\
 		pattrib_iv[1] = (dot11txpn._byte_.TSC1 | 0x20) & 0x7f;\
 		pattrib_iv[2] = dot11txpn._byte_.TSC0;\
@@ -141,11 +137,11 @@
 		pattrib_iv[5] = dot11txpn._byte_.TSC3;\
 		pattrib_iv[6] = dot11txpn._byte_.TSC4;\
 		pattrib_iv[7] = dot11txpn._byte_.TSC5;\
+		dot11txpn.val = dot11txpn.val == 0xffffffffffffULL ? 0 : (dot11txpn.val+1);\
 	} while (0)
 
 #define AES_IV(pattrib_iv, dot11txpn, keyidx)\
 	do {\
-		dot11txpn.val = dot11txpn.val == 0xffffffffffffULL ? 0 : (dot11txpn.val + 1);\
 		pattrib_iv[0] = dot11txpn._byte_.TSC0;\
 		pattrib_iv[1] = dot11txpn._byte_.TSC1;\
 		pattrib_iv[2] = 0;\
@@ -154,6 +150,7 @@
 		pattrib_iv[5] = dot11txpn._byte_.TSC3;\
 		pattrib_iv[6] = dot11txpn._byte_.TSC4;\
 		pattrib_iv[7] = dot11txpn._byte_.TSC5;\
+		dot11txpn.val = dot11txpn.val == 0xffffffffffffULL ? 0 : (dot11txpn.val+1);\
 	} while (0)
 
 /* Check if AMPDU Tx is supported or not. If it is supported,
@@ -185,8 +182,7 @@
 #if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) ||\
 	defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8192E) ||\
 	defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8703B) ||\
-	defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8188GTV) || defined(CONFIG_RTL8723D) ||\
-	defined(CONFIG_RTL8710B) || defined(CONFIG_RTL8192F)
+	defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8723D)
 	#define TXDESC_SIZE 40
 #elif defined(CONFIG_RTL8822B)
 	#define TXDESC_SIZE 48		/* HALMAC_TX_DESC_SIZE_8822B */
@@ -206,7 +202,11 @@
 #endif
 
 #ifdef CONFIG_USB_HCI
-	#define PACKET_OFFSET_SZ (8)
+	#ifdef USB_PACKET_OFFSET_SZ
+		#define PACKET_OFFSET_SZ (USB_PACKET_OFFSET_SZ)
+	#else
+		#define PACKET_OFFSET_SZ (8)
+	#endif
 	#define TXDESC_OFFSET (TXDESC_SIZE + PACKET_OFFSET_SZ)
 #endif
 
@@ -236,8 +236,7 @@ enum TXDESC_SC {
 		#define TXDESC_64_BYTES
 	#endif
 #elif defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8723B) \
-	|| defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8188GTV) || defined(CONFIG_RTL8723D) \
-	|| defined(CONFIG_RTL8192F)
+	|| defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8723D)
 	#define TXDESC_40_BYTES
 #endif
 
@@ -391,6 +390,9 @@ struct pkt_attrib {
 	u16	seqnum;
 
 	struct sta_info *psta;
+#ifdef CONFIG_TCP_CSUM_OFFLOAD_TX
+	u8	hw_tcp_csum;
+#endif
 };
 #else
 /* reduce size */
@@ -423,20 +425,6 @@ struct pkt_attrib {
 	u8	src[ETH_ALEN];
 	u8	ta[ETH_ALEN];
 	u8	ra[ETH_ALEN];
-#ifdef CONFIG_RTW_MESH
-	u8	mda[ETH_ALEN];	/* mesh da */
-	u8	msa[ETH_ALEN];	/* mesh sa */
-	u8	meshctrl_len;	/* Length of Mesh Control field */
-	u8	mesh_frame_mode;
-	#if CONFIG_RTW_MESH_DATA_BMC_TO_UC
-	u8 mb2u;
-	#endif
-	u8 mfwd_ttl;
-	u32 mseq;
-#endif
-#ifdef CONFIG_TX_CSUM_OFFLOAD
-	u8	hw_csum;
-#endif
 	u8	key_idx;
 	u8	qos_en;
 	u8	ht_en;
@@ -465,7 +453,9 @@ struct pkt_attrib {
 #endif /* CONFIG_WMMPS_STA */
 	
 	struct sta_info *psta;
-	u8	injected;
+#ifdef CONFIG_TCP_CSUM_OFFLOAD_TX
+	u8	hw_tcp_csum;
+#endif
 
 	u8 rtsen;
 	u8 cts2self;
@@ -493,14 +483,9 @@ struct pkt_attrib {
 	 */
 	u8 bf_pkt_type;
 #endif
+    u8  inject; /* == a5 if injected */
 
 };
-#endif
-
-#ifdef CONFIG_RTW_MESH
-#define XATTRIB_GET_MCTRL_LEN(xattrib) ((xattrib)->meshctrl_len)
-#else
-#define XATTRIB_GET_MCTRL_LEN(xattrib) 0
 #endif
 
 #ifdef CONFIG_TX_AMSDU
@@ -647,15 +632,10 @@ struct xmit_frame {
 	_list	list;
 
 	struct pkt_attrib attrib;
-
-	_pkt *pkt;
-
+	struct sk_buff *pkt;
 	int	frame_tag;
-
 	_adapter *padapter;
-
 	u8	*buf_addr;
-
 	struct xmit_buf *pxmitbuf;
 
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
@@ -904,30 +884,6 @@ extern struct xmit_frame *__rtw_alloc_cmdxmitframe_8822be(struct xmit_priv *pxmi
 extern struct xmit_frame *__rtw_alloc_cmdxmitframe_8821ce(struct xmit_priv *pxmitpriv,
 		enum cmdbuf_type buf_type);
 #define rtw_alloc_bcnxmitframe(p) __rtw_alloc_cmdxmitframe_8821ce(p, CMDBUF_BEACON)
-#elif defined(CONFIG_RTL8192F) && defined(CONFIG_PCI_HCI)
-extern struct xmit_frame *__rtw_alloc_cmdxmitframe_8192fe(struct xmit_priv *pxmitpriv,
-		enum cmdbuf_type buf_type);
-#define rtw_alloc_bcnxmitframe(p) __rtw_alloc_cmdxmitframe_8192fe(p, CMDBUF_BEACON)
-#elif defined(CONFIG_RTL8812A) && defined(CONFIG_PCI_HCI)
-extern struct xmit_frame *__rtw_alloc_cmdxmitframe_8812ae(struct xmit_priv *pxmitpriv,
-		enum cmdbuf_type buf_type);
-#define rtw_alloc_bcnxmitframe(p) __rtw_alloc_cmdxmitframe_8812ae(p, CMDBUF_BEACON)
-#elif defined(CONFIG_RTL8723D) && defined(CONFIG_PCI_HCI)
-extern struct xmit_frame *__rtw_alloc_cmdxmitframe_8723de(struct xmit_priv *pxmitpriv,
-		enum cmdbuf_type buf_type);
-#define rtw_alloc_bcnxmitframe(p) __rtw_alloc_cmdxmitframe_8723de(p, CMDBUF_BEACON)
-#elif defined(CONFIG_RTL8723B) && defined(CONFIG_PCI_HCI)
-extern struct xmit_frame *__rtw_alloc_cmdxmitframe_8723be(struct xmit_priv *pxmitpriv,
-		enum cmdbuf_type buf_type);
-#define rtw_alloc_bcnxmitframe(p) __rtw_alloc_cmdxmitframe_8723be(p, CMDBUF_BEACON)
-#elif defined(CONFIG_RTL8814A) && defined(CONFIG_PCI_HCI)
-extern struct xmit_frame *__rtw_alloc_cmdxmitframe_8814ae(struct xmit_priv *pxmitpriv,
-		enum cmdbuf_type buf_type);
-#define rtw_alloc_bcnxmitframe(p) __rtw_alloc_cmdxmitframe_8814ae(p, CMDBUF_BEACON)
-#elif defined(CONFIG_RTL8188E) && defined(CONFIG_PCI_HCI)
-extern struct xmit_frame *__rtw_alloc_cmdxmitframe_8188ee(struct xmit_priv *pxmitpriv,
-		enum cmdbuf_type buf_type);
-#define rtw_alloc_bcnxmitframe(p) __rtw_alloc_cmdxmitframe_8188ee(p, CMDBUF_BEACON)
 #else
 #define rtw_alloc_bcnxmitframe(p) __rtw_alloc_cmdxmitframe(p, CMDBUF_BEACON)
 #endif
@@ -940,6 +896,8 @@ extern s32 rtw_free_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitb
 
 void rtw_count_tx_stats(_adapter *padapter, struct xmit_frame *pxmitframe, int sz);
 extern void rtw_update_protection(_adapter *padapter, u8 *ie, uint ie_len);
+static s32 update_attrib_sec_info(_adapter *padapter, struct pkt_attrib *pattrib, struct sta_info *psta);
+static void update_attrib_phy_info(_adapter *padapter, struct pkt_attrib *pattrib, struct sta_info *psta);
 
 #ifdef CONFIG_WMMPS_STA
 static void update_attrib_trigger_frame_info(_adapter *padapter, struct pkt_attrib *pattrib);
@@ -960,10 +918,10 @@ extern struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct
 extern s32 rtw_xmit_classifier(_adapter *padapter, struct xmit_frame *pxmitframe);
 extern u32 rtw_calculate_wlan_pkt_size_by_attribue(struct pkt_attrib *pattrib);
 #define rtw_wlan_pkt_size(f) rtw_calculate_wlan_pkt_size_by_attribue(&f->attrib)
-extern s32 rtw_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
-#if defined(CONFIG_IEEE80211W) || defined(CONFIG_RTW_MESH)
-extern s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
-#endif
+extern s32 rtw_xmitframe_coalesce(_adapter *padapter, struct sk_buff *pkt, struct xmit_frame *pxmitframe);
+#ifdef CONFIG_IEEE80211W
+extern s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, struct sk_buff *pkt, struct xmit_frame *pxmitframe);
+#endif /* CONFIG_IEEE80211W */
 #ifdef CONFIG_TDLS
 extern struct tdls_txmgmt *ptxmgmt;
 s32 rtw_xmit_tdls_coalesce(_adapter *padapter, struct xmit_frame *pxmitframe, struct tdls_txmgmt *ptxmgmt);
@@ -987,8 +945,7 @@ void rtw_free_hwxmits(_adapter *padapter);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24))
 s32 rtw_monitor_xmit_entry(struct sk_buff *skb, struct net_device *ndev);
 #endif
-s32 rtw_xmit_posthandle(_adapter *padapter, struct xmit_frame *pxmitframe, _pkt *pkt);
-s32 rtw_xmit(_adapter *padapter, _pkt **pkt);
+s32 rtw_xmit(_adapter *padapter, struct sk_buff **pkt);
 bool xmitframe_hiq_filter(struct xmit_frame *xmitframe);
 #if defined(CONFIG_AP_MODE) || defined(CONFIG_TDLS)
 sint xmitframe_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame *pxmitframe);
@@ -1017,7 +974,7 @@ void enqueue_pending_xmitbuf_to_head(struct xmit_priv *pxmitpriv, struct xmit_bu
 struct xmit_buf	*dequeue_pending_xmitbuf(struct xmit_priv *pxmitpriv);
 struct xmit_buf	*select_and_dequeue_pending_xmitbuf(_adapter *padapter);
 sint	check_pending_xmitbuf(struct xmit_priv *pxmitpriv);
-thread_return	rtw_xmit_thread(thread_context context);
+int	rtw_xmit_thread(void *context);
 #endif
 
 #ifdef CONFIG_TX_AMSDU
@@ -1043,6 +1000,7 @@ void rtw_tx_desc_backup_reset(void);
 u8 rtw_get_tx_desc_backup(_adapter *padapter, u8 hwq, struct rtw_tx_desc_backup **pbak);
 #endif
 
+static void do_queue_select(_adapter *padapter, struct pkt_attrib *pattrib);
 u32	rtw_get_ff_hwaddr(struct xmit_frame	*pxmitframe);
 
 #ifdef CONFIG_XMIT_ACK

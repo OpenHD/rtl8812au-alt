@@ -24,7 +24,7 @@
 
 void
 odm_ConfigRFReg_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u32 					Addr,
 	u32 					Data,
 	enum rf_path     RF_PATH,
@@ -33,42 +33,42 @@ odm_ConfigRFReg_8814A(
 
 void 
 odm_ConfigRF_RadioA_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u32 					Addr,
 	u32 					Data
 	);
 
 void 
 odm_ConfigRF_RadioB_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u32 					Addr,
 	u32 					Data
 	);
 
 void 
 odm_ConfigRF_RadioC_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u32 					Addr,
 	u32 					Data
 	);
 
 void 
 odm_ConfigRF_RadioD_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u32 					Addr,
 	u32 					Data
 	);
 
 void 
 odm_ConfigMAC_8814A(
- 	struct dm_struct    *pDM_Odm,
+ 	struct PHY_DM_STRUCT    *pDM_Odm,
  	u32 		Addr,
  	IN 	u1Byte 		Data
  	);
 
 void 
 odm_ConfigBB_AGC_8814A(
-    struct dm_struct    *pDM_Odm,
+    struct PHY_DM_STRUCT    *pDM_Odm,
     u32 		Addr,
     u32 		Bitmask,
     u32 		Data
@@ -76,7 +76,7 @@ odm_ConfigBB_AGC_8814A(
 
 void
 odm_ConfigBB_PHY_REG_PG_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u32		Band,
 	u32		RfPath,
 	u32		TxNum,
@@ -87,7 +87,7 @@ odm_ConfigBB_PHY_REG_PG_8814A(
 
 void 
 odm_ConfigBB_PHY_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
     u32 		Addr,
     u32 		Bitmask,
     u32 		Data
@@ -95,7 +95,7 @@ odm_ConfigBB_PHY_8814A(
 
 void
 odm_ConfigBB_TXPWR_LMT_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u8*		Regulation,
 	u8*		Band,
 	u8*		Bandwidth,

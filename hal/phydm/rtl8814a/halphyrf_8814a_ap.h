@@ -37,7 +37,7 @@ void ConfigureTxpowerTrack_8814A(
 
 VOID
 GetDeltaSwingTable_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u8* 			*TemperatureUP_A,
 	u8* 			*TemperatureDOWN_A,
 	u8* 			*TemperatureUP_B,
@@ -46,7 +46,7 @@ GetDeltaSwingTable_8814A(
 
 VOID
 GetDeltaSwingTable_8814A_PathCD(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u8* 			*TemperatureUP_C,
 	u8* 			*TemperatureDOWN_C,
 	u8* 			*TemperatureUP_D,

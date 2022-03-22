@@ -16,10 +16,11 @@
 
 #include <drv_types.h>
 
-int rtw_os_recvframe_duplicate_skb(_adapter *padapter, union recv_frame *pcloneframe, _pkt *pskb)
+int rtw_os_recvframe_duplicate_skb(_adapter *padapter, union recv_frame *pcloneframe, struct sk_buff *pskb)
 {
 	int res = _SUCCESS;
-	_pkt	*pkt_copy = NULL;
+	struct sk_buff *pkt_copy = NULL;
+	struct rx_pkt_attrib *pattrib = &pcloneframe->u.hdr.attrib;
 
 	if (pskb == NULL) {
 		RTW_INFO("%s [WARN] skb == NULL, drop frag frame\n", __func__);
@@ -52,12 +53,12 @@ int rtw_os_recvframe_duplicate_skb(_adapter *padapter, union recv_frame *pclonef
 	return res;
 }
 
-int rtw_os_alloc_recvframe(_adapter *padapter, union recv_frame *precvframe, u8 *pdata, _pkt *pskb)
+int rtw_os_alloc_recvframe(_adapter *padapter, union recv_frame *precvframe, u8 *pdata, struct sk_buff *pskb)
 {
 	int res = _SUCCESS;
 	u8	shift_sz = 0;
 	u32	skb_len, alloc_sz;
-	_pkt	*pkt_copy = NULL;
+	struct sk_buff *pkt_copy = NULL;
 	struct rx_pkt_attrib *pattrib = &precvframe->u.hdr.attrib;
 
 
@@ -214,10 +215,8 @@ int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf)
 	int res = _SUCCESS;
 
 #ifdef CONFIG_USB_HCI
-#ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
 	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
-#endif
 
 	precvbuf->irp_pending = _FALSE;
 	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
@@ -282,29 +281,29 @@ int rtw_os_recvbuf_resource_free(_adapter *padapter, struct recv_buf *precvbuf)
 
 }
 
-_pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, const u8 *da, const u8 *sa, u8 *msdu ,u16 msdu_len)
+struct sk_buff *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 *pdata)
 {
 	u16	eth_type;
 	u8	*data_ptr;
-	_pkt *sub_skb;
+	struct sk_buff *sub_skb;
 	struct rx_pkt_attrib *pattrib;
 
 	pattrib = &prframe->u.hdr.attrib;
 
 #ifdef CONFIG_SKB_COPY
-	sub_skb = rtw_skb_alloc(msdu_len + 14);
+	sub_skb = rtw_skb_alloc(nSubframe_Length + 14);
 	if (sub_skb) {
 		skb_reserve(sub_skb, 14);
-		data_ptr = (u8 *)skb_put(sub_skb, msdu_len);
-		_rtw_memcpy(data_ptr, msdu, msdu_len);
+		data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
+		_rtw_memcpy(data_ptr, (pdata + ETH_HLEN), nSubframe_Length);
 	} else
 #endif /* CONFIG_SKB_COPY */
 	{
 		sub_skb = rtw_skb_clone(prframe->u.hdr.pkt);
 		if (sub_skb) {
-			sub_skb->data = msdu;
-			sub_skb->len = msdu_len;
-			skb_set_tail_pointer(sub_skb, msdu_len);
+			sub_skb->data = pdata + ETH_HLEN;
+			sub_skb->len = nSubframe_Length;
+			skb_set_tail_pointer(sub_skb, nSubframe_Length);
 		} else {
 			RTW_INFO("%s(): rtw_skb_clone() Fail!!!\n", __FUNCTION__);
 			return NULL;
@@ -313,23 +312,21 @@ _pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, const u8 *da, const u8 *s
 
 	eth_type = RTW_GET_BE16(&sub_skb->data[6]);
 
-	if (sub_skb->len >= 8
-		&& ((_rtw_memcmp(sub_skb->data, rtw_rfc1042_header, SNAP_SIZE)
-				&& eth_type != ETH_P_AARP && eth_type != ETH_P_IPX)
-			|| _rtw_memcmp(sub_skb->data, rtw_bridge_tunnel_header, SNAP_SIZE))
-	) {
+	if (sub_skb->len >= 8 &&
+	    ((_rtw_memcmp(sub_skb->data, rtw_rfc1042_header, SNAP_SIZE) &&
+	      eth_type != ETH_P_AARP && eth_type != ETH_P_IPX) ||
+	     _rtw_memcmp(sub_skb->data, rtw_bridge_tunnel_header, SNAP_SIZE))) {
 		/* remove RFC1042 or Bridge-Tunnel encapsulation and replace EtherType */
 		skb_pull(sub_skb, SNAP_SIZE);
-		_rtw_memcpy(skb_push(sub_skb, ETH_ALEN), sa, ETH_ALEN);
-		_rtw_memcpy(skb_push(sub_skb, ETH_ALEN), da, ETH_ALEN);
+		_rtw_memcpy(skb_push(sub_skb, ETH_ALEN), pdata + 6, ETH_ALEN);
+		_rtw_memcpy(skb_push(sub_skb, ETH_ALEN), pdata, ETH_ALEN);
 	} else {
-		/* Leave Ethernet header part of hdr and full payload */
 		u16 len;
-
+		/* Leave Ethernet header part of hdr and full payload */
 		len = htons(sub_skb->len);
 		_rtw_memcpy(skb_push(sub_skb, 2), &len, 2);
-		_rtw_memcpy(skb_push(sub_skb, ETH_ALEN), sa, ETH_ALEN);
-		_rtw_memcpy(skb_push(sub_skb, ETH_ALEN), da, ETH_ALEN);
+		_rtw_memcpy(skb_push(sub_skb, ETH_ALEN), pdata + 6, ETH_ALEN);
+		_rtw_memcpy(skb_push(sub_skb, ETH_ALEN), pdata, ETH_ALEN);
 	}
 
 	return sub_skb;
@@ -338,7 +335,7 @@ _pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, const u8 *da, const u8 *s
 #ifdef CONFIG_RTW_NAPI
 static int napi_recv(_adapter *padapter, int budget)
 {
-	_pkt *pskb;
+	struct sk_buff *pskb;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 	int work_done = 0;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
@@ -355,13 +352,8 @@ static int napi_recv(_adapter *padapter, int budget)
 
 #ifdef CONFIG_RTW_GRO
 		if (pregistrypriv->en_gro) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0)
 			if (rtw_napi_gro_receive(&padapter->napi, pskb) != GRO_DROP)
 				rx_ok = _TRUE;
-#else
-			rtw_napi_gro_receive(&padapter->napi, pskb);
-                        rx_ok = _TRUE;
-#endif
 			goto next;
 		}
 #endif /* CONFIG_RTW_GRO */
@@ -390,39 +382,16 @@ int rtw_recv_napi_poll(struct napi_struct *napi, int budget)
 
 	work_done = napi_recv(padapter, budget);
 	if (work_done < budget) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(CONFIG_PCI_HCI)
-		napi_complete_done(napi, work_done);
-#else
 		napi_complete(napi);
-#endif
 		if (!skb_queue_empty(&precvpriv->rx_napi_skb_queue))
 			napi_schedule(napi);
 	}
 
 	return work_done;
 }
-
-#ifdef CONFIG_RTW_NAPI_DYNAMIC
-void dynamic_napi_th_chk (_adapter *adapter)
-{
-
-	if (adapter->registrypriv.en_napi) {
-		struct dvobj_priv *dvobj;
-		struct registry_priv *registry;
-	
-		dvobj = adapter_to_dvobj(adapter);
-		registry = &adapter->registrypriv;
-		if (dvobj->traffic_stat.cur_rx_tp > registry->napi_threshold)
-			dvobj->en_napi_dynamic = 1;
-		else
-			dvobj->en_napi_dynamic = 0;
-	}
-
-}
-#endif /* CONFIG_RTW_NAPI_DYNAMIC */
 #endif /* CONFIG_RTW_NAPI */
 
-void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, union recv_frame *rframe)
+void rtw_os_recv_indicate_pkt(_adapter *padapter, struct sk_buff *pkt, union recv_frame *rframe)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct recv_priv *precvpriv = &(padapter->recvpriv);
@@ -439,7 +408,7 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, union recv_frame *r
 		DBG_COUNTER(padapter->rx_logs.os_indicate);
 
 		if (MLME_IS_AP(padapter)) {
-			_pkt *pskb2 = NULL;
+			struct sk_buff *pskb2 = NULL;
 			struct sta_info *psta = NULL;
 			struct sta_priv *pstapriv = &padapter->stapriv;
 			int bmcast = IS_MCAST(ehdr->h_dest);
@@ -516,20 +485,8 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, union recv_frame *r
 		pkt->protocol = eth_type_trans(pkt, padapter->pnetdev);
 		pkt->dev = padapter->pnetdev;
 		pkt->ip_summed = CHECKSUM_NONE; /* CONFIG_TCP_CSUM_OFFLOAD_RX */
-#ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
-		if ((rframe->u.hdr.attrib.csum_valid == 1)
-		    && (rframe->u.hdr.attrib.csum_err == 0))
-			pkt->ip_summed = CHECKSUM_UNNECESSARY;
-#endif /* CONFIG_TCP_CSUM_OFFLOAD_RX */
 
 #ifdef CONFIG_RTW_NAPI
-#ifdef CONFIG_RTW_NAPI_DYNAMIC
-		if (!skb_queue_empty(&precvpriv->rx_napi_skb_queue)
-			&& !adapter_to_dvobj(padapter)->en_napi_dynamic			
-			)
-			napi_recv(padapter, RTL_NAPI_WEIGHT);
-#endif
-
 		if (pregistrypriv->en_napi
 			#ifdef CONFIG_RTW_NAPI_DYNAMIC
 			&& adapter_to_dvobj(padapter)->en_napi_dynamic
@@ -544,10 +501,11 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, union recv_frame *r
 #endif /* CONFIG_RTW_NAPI */
 
 		ret = rtw_netif_rx(padapter->pnetdev, pkt);
-		if (ret == NET_RX_SUCCESS)
+		if (ret == NET_RX_SUCCESS) {
 			DBG_COUNTER(padapter->rx_logs.os_netif_ok);
-		else
+		} else {
 			DBG_COUNTER(padapter->rx_logs.os_netif_err);
+		}
 	}
 }
 
@@ -558,6 +516,7 @@ void rtw_handle_tkip_mic_err(_adapter *padapter, struct sta_info *sta, u8 bgroup
 #endif
 	union iwreq_data wrqu;
 	struct iw_michaelmicfailure    ev;
+	struct mlme_priv              *pmlmepriv  = &padapter->mlmepriv;
 	struct security_priv	*psecuritypriv = &padapter->securitypriv;
 	systime cur_time = 0;
 
@@ -603,7 +562,7 @@ void rtw_handle_tkip_mic_err(_adapter *padapter, struct sta_info *sta, u8 bgroup
 #ifdef CONFIG_HOSTAPD_MLME
 void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame)
 {
-	_pkt *skb;
+	struct sk_buff *skb;
 	struct hostapd_priv *phostapdpriv  = padapter->phostapdpriv;
 	struct net_device *pmgnt_netdev = phostapdpriv->pmgnt_netdev;
 
@@ -645,7 +604,8 @@ int rtw_recv_monitor(_adapter *padapter, union recv_frame *precv_frame)
 	int ret = _FAIL;
 	struct recv_priv *precvpriv;
 	_queue	*pfree_recv_queue;
-	_pkt *skb;
+	struct sk_buff *skb;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct rx_pkt_attrib *pattrib;
 
 	if (NULL == precv_frame)
@@ -685,27 +645,25 @@ _recv_drop:
 
 }
 
-inline void rtw_rframe_set_os_pkt(union recv_frame *rframe)
-{
-	_pkt *skb = rframe->u.hdr.pkt;
-
-	skb->data = rframe->u.hdr.rx_data;
-	skb_set_tail_pointer(skb, rframe->u.hdr.len);
-	skb->len = rframe->u.hdr.len;
-}
-
 int rtw_recv_indicatepkt(_adapter *padapter, union recv_frame *precv_frame)
 {
 	struct recv_priv *precvpriv;
 	_queue	*pfree_recv_queue;
+	struct sk_buff *skb;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	precvpriv = &(padapter->recvpriv);
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
 
-	if (precv_frame->u.hdr.pkt == NULL)
+	skb = precv_frame->u.hdr.pkt;
+	if (skb == NULL)
 		goto _recv_indicatepkt_drop;
 
-	rtw_os_recv_indicate_pkt(padapter, precv_frame->u.hdr.pkt, precv_frame);
+	skb->data = precv_frame->u.hdr.rx_data;
+	skb_set_tail_pointer(skb, precv_frame->u.hdr.len);
+	skb->len = precv_frame->u.hdr.len;
+
+	rtw_os_recv_indicate_pkt(padapter, skb, precv_frame);
 
 _recv_indicatepkt_end:
 	precv_frame->u.hdr.pkt = NULL;

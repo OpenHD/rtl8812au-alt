@@ -26,48 +26,10 @@
 #include "../phydm_precomp.h"
 
 #if (RTL8814A_SUPPORT == 1)
-s8 phydm_cck_rssi_8814a(struct dm_struct *dm, u16 lna_idx, u8 vga_idx)
-{
-	s8 rx_pwr_all = 0;
-
-	switch (lna_idx) {
-	case 7:
-		if (vga_idx <= 27)
-			rx_pwr_all = -94 + 2 * (27 - vga_idx);
-		else
-			rx_pwr_all = -94;
-		break;
-	case 6:
-		rx_pwr_all = -42 + 2 * (2 - vga_idx);
-		break;
-	case 5:
-		rx_pwr_all = -36 + 2 * (7 - vga_idx);
-		break;
-	case 4:
-		rx_pwr_all = -30 + 2 * (7 - vga_idx);
-		break;
-	case 3:
-		rx_pwr_all = -18 + 2 * (7 - vga_idx);
-		break;
-	case 2:
-		rx_pwr_all = 2 * (5 - vga_idx);
-		break;
-	case 1:
-		rx_pwr_all = 14 - 2 * vga_idx;
-		break;
-	case 0:
-		rx_pwr_all = 20 - 2 * vga_idx;
-		break;
-	default:
-		break;
-	}
-
-	return rx_pwr_all;
-}
 #ifdef PHYDM_PRIMARY_CCA
 VOID
 odm_Write_Dynamic_CCA_8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u8			CurrentMFstate
 	)
 {
@@ -84,7 +46,7 @@ odm_Write_Dynamic_CCA_8814A(
 
 VOID
 odm_PrimaryCCA_Check_Init_8814A(
-	struct dm_struct    *pDM_Odm)
+	struct PHY_DM_STRUCT    *pDM_Odm)
 {
 #if ((DM_ODM_SUPPORT_TYPE == ODM_WIN) || (DM_ODM_SUPPORT_TYPE == ODM_AP))
 	PADAPTER		pAdapter = pDM_Odm->Adapter;
@@ -104,7 +66,7 @@ odm_PrimaryCCA_Check_Init_8814A(
 
 VOID
 odm_DynamicPrimaryCCA_Check_8814A(
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 	)
 {
 	if(pDM_Odm->SupportICType != ODM_RTL8814A) 
@@ -139,7 +101,7 @@ odm_DynamicPrimaryCCA_Check_8814A(
 
 VOID
 odm_DynamicPrimaryCCAMP_8814A(
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 	)
 {
 	PADAPTER		pAdapter = pDM_Odm->Adapter;
@@ -275,7 +237,7 @@ odm_DynamicPrimaryCCAMP_8814A(
 
 VOID
 odm_DynamicPrimaryCCAAP_8814A(
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 	)
 {
 	PADAPTER	Adapter = pDM_Odm->Adapter;
@@ -415,7 +377,7 @@ odm_DynamicPrimaryCCAAP_8814A(
 
 VOID
 odm_Intf_Detection_8814A(
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 	)
 {
 	PFALSE_ALARM_STATISTICS		FalseAlmCnt = (PFALSE_ALARM_STATISTICS)PhyDM_Get_Structure( pDM_Odm, PHYDM_FALSEALMCNT);
@@ -458,7 +420,7 @@ odm_Intf_Detection_8814A(
 
 u8
 phydm_spur_nbi_setting_8814a(
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 	)
 {
 	u8	set_result = 0;
@@ -466,22 +428,22 @@ phydm_spur_nbi_setting_8814a(
 	/*pDM_Odm->pChannel means central frequency, so we can use 20M as input*/
 	if (pDM_Odm->rfe_type == 0 || pDM_Odm->rfe_type == 1 || pDM_Odm->rfe_type == 6) {
 		/*channel asked by RF Jeff*/
-		if (*pDM_Odm->channel == 14)
-			set_result = phydm_nbi_setting(pDM_Odm,	FUNC_ENABLE, *pDM_Odm->channel, 40, 2480, PHYDM_DONT_CARE);
-		else if (*pDM_Odm->channel >= 4 || *pDM_Odm->channel <= 8)
-			set_result = phydm_nbi_setting(pDM_Odm,	FUNC_ENABLE, *pDM_Odm->channel, 40, 2440, PHYDM_DONT_CARE);
+		if (*pDM_Odm->p_channel == 14)
+			set_result = phydm_nbi_setting(pDM_Odm,	FUNC_ENABLE, *pDM_Odm->p_channel, 40, 2480, PHYDM_DONT_CARE);
+		else if (*pDM_Odm->p_channel >= 4 || *pDM_Odm->p_channel <= 8)
+			set_result = phydm_nbi_setting(pDM_Odm,	FUNC_ENABLE, *pDM_Odm->p_channel, 40, 2440, PHYDM_DONT_CARE);
 		else
-			set_result = phydm_nbi_setting(pDM_Odm,	FUNC_ENABLE, *pDM_Odm->channel, 40, 2440, PHYDM_DONT_CARE);
+			set_result = phydm_nbi_setting(pDM_Odm,	FUNC_ENABLE, *pDM_Odm->p_channel, 40, 2440, PHYDM_DONT_CARE);
 	}
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("%s, set_result = 0x%d, pChannel = %d\n", __func__, set_result, *pDM_Odm->channel));
-	//printk("%s, set_result = 0x%d, pChannel = %d\n", __func__, set_result, *pDM_Odm->channel);
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("%s, set_result = 0x%d, pChannel = %d\n", __func__, set_result, *pDM_Odm->p_channel));
+	//printk("%s, set_result = 0x%d, pChannel = %d\n", __func__, set_result, *pDM_Odm->p_channel);
 	pDM_Odm->nbi_set_result = set_result;
 	return set_result;
 
 }
 
 void odm_hw_setting_8814a(
-	struct dm_struct	*p_dm_odm
+	struct PHY_DM_STRUCT	*p_dm_odm
 	)
 {
 #ifdef PHYDM_PRIMARY_CCA

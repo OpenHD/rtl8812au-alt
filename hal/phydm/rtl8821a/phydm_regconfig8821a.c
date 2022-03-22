@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,16 +11,20 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- *****************************************************************************/
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ *
+ ******************************************************************************/
 
 #include "mp_precomp.h"
 #include "../phydm_precomp.h"
 
-#if (RTL8821A_SUPPORT == 1)
+#if (RTL8821A_SUPPORT == 1)  
 
-void
-odm_config_rf_reg_8821a(
-	struct dm_struct				*dm,
+void odm_config_rf_reg_8821a(
+	struct PHY_DM_STRUCT				*p_dm_odm,
 	u32					addr,
 	u32					data,
 	enum rf_path     RF_PATH,
@@ -33,27 +37,39 @@ odm_config_rf_reg_8821a(
 #else
 		ODM_delay_ms(50);
 #endif
-	} else if (addr == 0xfd)
+	}
+	else if ( addr == 0xfd)
+	{
 		ODM_delay_ms(5);
+	}
 	else if (addr == 0xfc)
+	{
 		ODM_delay_ms(1);
+	}
 	else if (addr == 0xfb)
+	{
 		ODM_delay_us(50);
+	}
 	else if (addr == 0xfa)
+	{
 		ODM_delay_us(5);
+	}
 	else if (addr == 0xf9)
-		ODM_delay_us(1);
-	else {
-		odm_set_rf_reg(dm, RF_PATH, reg_addr, RFREGOFFSETMASK, data);
-		/* Add 1us delay between BB/RF register setting. */
+	{
 		ODM_delay_us(1);
 	}
+	else
+	{
+		odm_set_rf_reg(p_dm_odm, RF_PATH, reg_addr, RFREGOFFSETMASK, data);
+		// Add 1us delay between BB/RF register setting.
+		ODM_delay_us(1);
+	}	
 }
 
 
 void
 odm_config_rf_radio_a_8821a(
-	struct dm_struct				*dm,
+	struct PHY_DM_STRUCT				*p_dm_odm,
 	u32					addr,
 	u32					data
 )
@@ -61,59 +77,56 @@ odm_config_rf_radio_a_8821a(
 	u32  content = 0x1000; /* RF_Content: radioa_txt */
 	u32	maskfor_phy_set = (u32)(content & 0xE000);
 
-	odm_config_rf_reg_8821a(dm, addr, data, RF_PATH_A, addr | maskfor_phy_set);
+	odm_config_rf_reg_8821a(p_dm_odm, addr, data, RF_PATH_A, addr | maskfor_phy_set);
 
-	PHYDM_DBG(dm, ODM_COMP_INIT, "===> odm_config_rf_with_header_file: [RadioA] %08X %08X\n", addr, data);
+    ODM_RT_TRACE(p_dm_odm,ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ConfigRFWithHeaderFile: [RadioA] %08X %08X\n", addr, data));
 }
 
-/* 8821 no RF B */
-#if 0
 void
 odm_config_rf_radio_b_8821a(
-	struct dm_struct				*dm,
+	struct PHY_DM_STRUCT				*p_dm_odm,
 	u32					addr,
 	u32					data
 )
 {
-	u32  content = 0x1001; /*  RF_Content: radiob_txt */
+	u32  content = 0x1001; /* RF_Content: radiob_txt */
 	u32	maskfor_phy_set = (u32)(content & 0xE000);
 
-	odm_config_rf_reg_8812a(dm, addr, data, RF_PATH_B, addr | maskfor_phy_set);
+	odm_config_rf_reg_8821a(p_dm_odm, addr, data, RF_PATH_B, addr | maskfor_phy_set);
 
-	PHYDM_DBG(dm, ODM_COMP_INIT, "===> odm_config_rf_with_header_file: [RadioB] %08X %08X\n", addr, data);
+	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> odm_config_rf_with_header_file: [RadioB] %08X %08X\n", addr, data));
 
 }
-#endif
 
 void
 odm_config_mac_8821a(
-	struct dm_struct	*dm,
+	struct PHY_DM_STRUCT	*p_dm_odm,
 	u32		addr,
 	u8		data
 )
 {
-	odm_write_1byte(dm, addr, data);
-	PHYDM_DBG(dm, ODM_COMP_INIT, "===> odm_config_mac_with_header_file: [MAC_REG] %08X %08X\n", addr, data);
+	odm_write_1byte(p_dm_odm, addr, data);
+	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> odm_config_mac_with_header_file: [MAC_REG] %08X %08X\n", addr, data));
 }
 
 void
 odm_config_bb_agc_8821a(
-	struct dm_struct	*dm,
+	struct PHY_DM_STRUCT	*p_dm_odm,
 	u32		addr,
 	u32		bitmask,
 	u32		data
 )
 {
-	odm_set_bb_reg(dm, addr, bitmask, data);
+	odm_set_bb_reg(p_dm_odm, addr, bitmask, data);
 	/* Add 1us delay between BB/RF register setting. */
 	ODM_delay_us(1);
 
-	PHYDM_DBG(dm, ODM_COMP_INIT, "===> odm_config_bb_with_header_file: [AGC_TAB] %08X %08X\n", addr, data);
+	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> odm_config_bb_with_header_file: [AGC_TAB] %08X %08X\n", addr, data));
 }
 
 void
 odm_config_bb_phy_reg_pg_8821a(
-	struct dm_struct	*dm,
+	struct PHY_DM_STRUCT	*p_dm_odm,
 	u32		band,
 	u32		rf_path,
 	u32		tx_num,
@@ -122,7 +135,7 @@ odm_config_bb_phy_reg_pg_8821a(
 	u32		data
 )
 {
-	if (addr == 0xfe)
+	if (addr == 0xfe || addr == 0xffe)
 #ifdef CONFIG_LONG_DELAY_ISSUE
 		ODM_sleep_ms(50);
 #else
@@ -139,19 +152,17 @@ odm_config_bb_phy_reg_pg_8821a(
 	else if (addr == 0xf9)
 		ODM_delay_us(1);
 
-	PHYDM_DBG(dm, ODM_COMP_INIT, "===> odm_config_bb_with_header_file: [PHY_REG] %08X %08X %08X\n", addr, bitmask, data);
+	ODM_RT_TRACE(p_dm_odm,ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ConfigBBWithHeaderFile: [PHY_REG] %08X %08X %08X\n", addr, bitmask, data));
 
-#if (DM_ODM_SUPPORT_TYPE & ODM_CE)
-	phy_store_tx_power_by_rate(dm->adapter, band, rf_path, tx_num, addr, bitmask, data);
-#elif (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-	PHY_StoreTxPowerByRate((PADAPTER)dm->adapter, band, rf_path, tx_num, addr, bitmask, data);
+#if	!(DM_ODM_SUPPORT_TYPE&ODM_AP)
+	phy_store_tx_power_by_rate(p_dm_odm->adapter, band, rf_path, tx_num, addr, bitmask, data);
 #endif
 
 }
 
 void
 odm_config_bb_phy_8821a(
-	struct dm_struct	*dm,
+	struct PHY_DM_STRUCT	*p_dm_odm,
 	u32		addr,
 	u32		bitmask,
 	u32		data
@@ -174,17 +185,17 @@ odm_config_bb_phy_8821a(
 	else if (addr == 0xf9)
 		ODM_delay_us(1);
 	else if (addr == 0xa24)
-		dm->rf_calibrate_info.rega24 = data;
-	odm_set_bb_reg(dm, addr, bitmask, data);
-
-	/* Add 1us delay between BB/RF register setting. */
+		p_dm_odm->rf_calibrate_info.rega24 = data;			
+	odm_set_bb_reg(p_dm_odm, addr, bitmask, data);		
+	
+	// Add 1us delay between BB/RF register setting.
 	ODM_delay_us(1);
-	PHYDM_DBG(dm, ODM_COMP_INIT, "===> odm_config_bb_with_header_file: [PHY_REG] %08X %08X\n", addr, data);
+    ODM_RT_TRACE(p_dm_odm,ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ConfigBBWithHeaderFile: [PHY_REG] %08X %08X\n", addr, data));
 }
 
 void
 odm_config_bb_txpwr_lmt_8821a(
-	struct dm_struct	*dm,
+	struct PHY_DM_STRUCT	*p_dm_odm,
 	u8		*regulation,
 	u8		*band,
 	u8		*bandwidth,
@@ -194,13 +205,11 @@ odm_config_bb_txpwr_lmt_8821a(
 	u8		*power_limit
 )
 {
-#if (DM_ODM_SUPPORT_TYPE & ODM_CE)
-	phy_set_tx_power_limit(dm, regulation, band,
-		       bandwidth, rate_section, rf_path, channel, power_limit);
-#elif (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-	PHY_SetTxPowerLimit(dm, regulation, band,
-		       bandwidth, rate_section, rf_path, channel, power_limit);
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
+	phy_set_tx_power_limit(p_dm_odm, regulation, band,
+		bandwidth, rate_section, rf_path, channel, power_limit);
 #endif
 }
 
 #endif	/* #if (RTL8821A_SUPPORT == 1)*/
+

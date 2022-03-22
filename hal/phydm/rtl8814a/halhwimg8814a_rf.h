@@ -30,7 +30,7 @@
 
 void
 odm_read_and_config_mp_8814a_radioa(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_RadioA(void);
 
@@ -40,7 +40,7 @@ u4Byte ODM_GetVersion_MP_8814A_RadioA(void);
 
 void
 odm_read_and_config_mp_8814a_radiob(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_RadioB(void);
 
@@ -50,7 +50,7 @@ u4Byte ODM_GetVersion_MP_8814A_RadioB(void);
 
 void
 odm_read_and_config_mp_8814a_radioc(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_RadioC(void);
 
@@ -60,7 +60,7 @@ u4Byte ODM_GetVersion_MP_8814A_RadioC(void);
 
 void
 odm_read_and_config_mp_8814a_radiod(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_RadioD(void);
 
@@ -70,7 +70,7 @@ u4Byte ODM_GetVersion_MP_8814A_RadioD(void);
 
 void
 odm_read_and_config_mp_8814a_txpowertrack(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_TxPowerTrack(void);
 
@@ -80,7 +80,7 @@ u4Byte ODM_GetVersion_MP_8814A_TxPowerTrack(void);
 
 void
 odm_read_and_config_mp_8814a_txpowertrack_type0(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_TxPowerTrack_Type0(void);
 
@@ -90,7 +90,7 @@ u4Byte ODM_GetVersion_MP_8814A_TxPowerTrack_Type0(void);
 
 void
 odm_read_and_config_mp_8814a_txpowertrack_type2(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_TxPowerTrack_Type2(void);
 
@@ -100,7 +100,7 @@ u4Byte ODM_GetVersion_MP_8814A_TxPowerTrack_Type2(void);
 
 void
 odm_read_and_config_mp_8814a_txpowertrack_type5(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_TxPowerTrack_Type5(void);
 
@@ -110,7 +110,7 @@ u4Byte ODM_GetVersion_MP_8814A_TxPowerTrack_Type5(void);
 
 void
 odm_read_and_config_mp_8814a_txpwr_lmt(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_TXPWR_LMT(void);
 
@@ -120,7 +120,7 @@ u4Byte ODM_GetVersion_MP_8814A_TXPWR_LMT(void);
 
 void
 odm_read_and_config_mp_8814a_txpwr_lmt_type2(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_TXPWR_LMT_type2(void);
 
@@ -130,7 +130,7 @@ u4Byte ODM_GetVersion_MP_8814A_TXPWR_LMT_type2(void);
 
 void
 odm_read_and_config_mp_8814a_txpwr_lmt_type3(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_TXPWR_LMT_Type3(void);
 
@@ -140,7 +140,7 @@ u4Byte ODM_GetVersion_MP_8814A_TXPWR_LMT_Type3(void);
 
 void
 odm_read_and_config_mp_8814a_txpwr_lmt_type5(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte ODM_GetVersion_MP_8814A_TXPWR_LMT_Type5(void);
 

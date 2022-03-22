@@ -16,10 +16,6 @@
 #define __OSDEP_LINUX_SERVICE_H_
 
 #include <linux/version.h>
-#ifndef RHEL_RELEASE_CODE
-#define RHEL_RELEASE_VERSION(a,b) (((a) << 8) + (b))
-#define RHEL_RELEASE_CODE 0
-#endif
 #include <linux/spinlock.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
@@ -69,6 +65,10 @@
 	#include <linux/limits.h>
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+	#include <linux/sched/signal.h>
+#endif
+
 #ifdef RTK_DMP_PLATFORM
 	#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 12))
 		#include <linux/pageremap.h>
@@ -97,6 +97,10 @@
 	#include <net/cfg80211.h>
 #endif /* CONFIG_IOCTL_CFG80211 */
 
+#ifdef CONFIG_TCP_CSUM_OFFLOAD_TX
+	#include <linux/in.h>
+	#include <linux/udp.h>
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	#include <linux/earlysuspend.h>
@@ -127,7 +131,7 @@
 	typedef struct urb   *PURB;
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22))
 		#ifdef CONFIG_USB_SUSPEND
-			#define CONFIG_AUTOSUSPEND	0
+			#define CONFIG_AUTOSUSPEND	1
 		#endif
 	#endif
 #endif
@@ -160,13 +164,15 @@ typedef	spinlock_t	_lock;
 #else
 	typedef struct semaphore	_mutex;
 #endif
-struct rtw_timer_list {
-	struct timer_list timer;
-	void (*function)(void *);
-	void *arg;
-};
-
-typedef struct rtw_timer_list _timer;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+typedef struct legacy_timer_emu {
+  struct timer_list t;
+  void (*function)(unsigned long);
+  unsigned long data;
+} _timer;
+#else
+typedef struct timer_list _timer;
+#endif //(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 typedef struct completion _completion;
 
 struct	__queue	{
@@ -179,25 +185,6 @@ typedef unsigned char	_buffer;
 
 typedef struct	__queue	_queue;
 typedef struct	list_head	_list;
-
-/* hlist */
-typedef struct	hlist_head	rtw_hlist_head;
-typedef struct	hlist_node	rtw_hlist_node;
-
-/* RCU */
-typedef struct rcu_head rtw_rcu_head;
-#define rtw_rcu_dereference(p) rcu_dereference((p))
-#define rtw_rcu_dereference_protected(p, c) rcu_dereference_protected(p, c)
-#define rtw_rcu_assign_pointer(p, v) rcu_assign_pointer((p), (v))
-#define rtw_rcu_read_lock() rcu_read_lock()
-#define rtw_rcu_read_unlock() rcu_read_unlock()
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34))
-#define rtw_rcu_access_pointer(p) rcu_access_pointer(p)
-#endif
-
-/* rhashtable */
-#include "../os_dep/linux/rtw_rhashtable.h"
-
 typedef	int	_OS_STATUS;
 /* typedef u32	_irqL; */
 typedef unsigned long _irqL;
@@ -245,31 +232,20 @@ static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
 }
 #endif
 
-__inline static void rtw_list_delete(_list *plist)
-{
-	list_del_init(plist);
-}
-
 __inline static _list *get_next(_list	*list)
 {
 	return list->next;
 }
 
+__inline static _list	*get_list_head(_queue	*queue)
+{
+	return &(queue->queue);
+}
+
+
 #define LIST_CONTAINOR(ptr, type, member) \
 	((type *)((char *)(ptr)-(SIZE_T)(&((type *)0)->member)))
 
-#define rtw_list_first_entry(ptr, type, member) list_first_entry(ptr, type, member)
-
-#define rtw_hlist_for_each_entry(pos, head, member) hlist_for_each_entry(pos, head, member)
-#define rtw_hlist_for_each_safe(pos, n, head) hlist_for_each_safe(pos, n, head)
-#define rtw_hlist_entry(ptr, type, member) hlist_entry(ptr, type, member)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0))
-#define rtw_hlist_for_each_entry_safe(pos, np, n, head, member) hlist_for_each_entry_safe(pos, n, head, member)
-#define rtw_hlist_for_each_entry_rcu(pos, node, head, member) hlist_for_each_entry_rcu(pos, head, member)
-#else
-#define rtw_hlist_for_each_entry_safe(pos, np, n, head, member) hlist_for_each_entry_safe(pos, np, n, head, member)
-#define rtw_hlist_for_each_entry_rcu(pos, node, head, member) hlist_for_each_entry_rcu(pos, node, head, member)
-#endif
 
 __inline static void _enter_critical(_lock *plock, _irqL *pirqL)
 {
@@ -301,16 +277,6 @@ __inline static void _exit_critical_bh(_lock *plock, _irqL *pirqL)
 	spin_unlock_bh(plock);
 }
 
-__inline static void enter_critical_bh(_lock *plock)
-{
-	spin_lock_bh(plock);
-}
-
-__inline static void exit_critical_bh(_lock *plock)
-{
-	spin_unlock_bh(plock);
-}
-
 __inline static int _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 {
 	int ret = 0;
@@ -324,17 +290,6 @@ __inline static int _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 }
 
 
-__inline static int _enter_critical_mutex_lock(_mutex *pmutex, _irqL *pirqL)
-{
-	int ret = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	mutex_lock(pmutex);
-#else
-	down(pmutex);
-#endif
-	return ret;
-}
-
 __inline static void _exit_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
@@ -344,48 +299,47 @@ __inline static void _exit_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 #endif
 }
 
-__inline static _list	*get_list_head(_queue	*queue)
+__inline static void rtw_list_delete(_list *plist)
 {
-	return &(queue->queue);
+	list_del_init(plist);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
-static inline void timer_hdl(struct timer_list *in_timer)
-#else
-static inline void timer_hdl(unsigned long cntx)
-#endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+static void legacy_timer_emu_func(struct timer_list *t)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
-	_timer *ptimer = from_timer(ptimer, in_timer, timer);
-#else
-	_timer *ptimer = (_timer *)cntx;
-#endif
-	ptimer->function(ptimer->arg);
+  struct legacy_timer_emu *lt = from_timer(lt, t, t);
+  lt->function(lt->data);
 }
+#endif //(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 
 __inline static void _init_timer(_timer *ptimer, _nic_hdl nic_hdl, void *pfunc, void *cntx)
 {
-	ptimer->function = pfunc;
-	ptimer->arg = cntx;
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
-	timer_setup(&ptimer->timer, timer_hdl, 0);
-#else
 	/* setup_timer(ptimer, pfunc,(u32)cntx);	 */
-	ptimer->timer.function = timer_hdl;
-	ptimer->timer.data = (unsigned long)ptimer;
-	init_timer(&ptimer->timer);
-#endif
+	ptimer->function = pfunc;
+	ptimer->data = (unsigned long)cntx;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+  timer_setup(&ptimer->t, legacy_timer_emu_func, 0);
+#else
+	init_timer(ptimer);
+#endif //(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 }
 
 __inline static void _set_timer(_timer *ptimer, u32 delay_time)
 {
-	mod_timer(&ptimer->timer , (jiffies + (delay_time * HZ / 1000)));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+  mod_timer(&ptimer->t, (jiffies + (delay_time * HZ / 1000)));
+#else
+	mod_timer(ptimer , (jiffies + (delay_time * HZ / 1000)));
+#endif //(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 }
 
 __inline static void _cancel_timer(_timer *ptimer, u8 *bcancelled)
 {
-	*bcancelled = del_timer_sync(&ptimer->timer) == 1 ? 1 : 0;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+	*bcancelled = del_timer_sync(&ptimer->t) == 1 ? 1 : 0;
+#else
+	*bcancelled = del_timer_sync(ptimer) == 1 ? 1 : 0;
+#endif //(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 }
 
 static inline void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)

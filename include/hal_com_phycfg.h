@@ -29,6 +29,8 @@ typedef enum _RF_TX_NUM {
 	RF_TX_NUM_NONIMPLEMENT,
 } RF_TX_NUM;
 
+#define MAX_POWER_INDEX		0x3F
+
 /*------------------------------Define structure----------------------------*/
 typedef struct _BB_REGISTER_DEFINITION {
 	u32 rfintfs;			/* set software control: */
@@ -161,7 +163,7 @@ PHY_GetTxPowerIndexBase(
 	OUT PBOOLEAN		bIn24G
 );
 
-#if CONFIG_TXPWR_LIMIT
+#ifdef CONFIG_TXPWR_LIMIT
 s8 phy_get_txpwr_lmt_abs(_adapter *adapter
 	, const char *regd_name
 	, BAND_TYPE band, enum channel_width bw
@@ -180,9 +182,9 @@ s8 PHY_GetTxPowerLimit(_adapter *adapter
 	, u8 rfpath, u8 rate, u8 ntx_idx, u8 cch
 );
 #else
-#define phy_get_txpwr_lmt_abs(adapter, regd_name, band, bw, tlrs, ntx_idx, cch, lock) (GET_HAL_SPEC(adapter)->txgi_max)
-#define phy_get_txpwr_lmt(adapter, regd_name, band, bw, rfpath, rs, ntx_idx, cch, lock) (GET_HAL_SPEC(adapter)->txgi_max)
-#define PHY_GetTxPowerLimit(adapter, regd_name, band, bw, rfpath, rate, ntx_idx, cch) (GET_HAL_SPEC(adapter)->txgi_max)
+#define phy_get_txpwr_lmt_abs(adapter, regd_name, band, bw, tlrs, ntx_idx, cch, lock) MAX_POWER_INDEX
+#define phy_get_txpwr_lmt(adapter, regd_name, band, bw, rfpath, rs, ntx_idx, cch, lock) MAX_POWER_INDEX
+#define PHY_GetTxPowerLimit(adapter, regd_name, band, bw, rfpath, rate, ntx_idx, cch) MAX_POWER_INDEX
 #endif /* CONFIG_TXPWR_LIMIT */
 
 s8
@@ -225,7 +227,7 @@ void dump_tx_power_idx(void *sel, _adapter *adapter);
 bool phy_is_tx_power_limit_needed(_adapter *adapter);
 bool phy_is_tx_power_by_rate_needed(_adapter *adapter);
 int phy_load_tx_power_by_rate(_adapter *adapter, u8 chk_file);
-#if CONFIG_TXPWR_LIMIT
+#ifdef CONFIG_TXPWR_LIMIT
 int phy_load_tx_power_limit(_adapter *adapter, u8 chk_file);
 #endif
 void phy_load_tx_power_ext_info(_adapter *adapter, u8 chk_file);
@@ -233,10 +235,6 @@ void phy_reload_tx_power_ext_info(_adapter *adapter);
 void phy_reload_default_tx_power_ext_info(_adapter *adapter);
 
 const struct map_t *hal_pg_txpwr_def_info(_adapter *adapter);
-
-#ifdef CONFIG_EFUSE_CONFIG_FILE
-int check_phy_efuse_tx_power_info_valid(_adapter *adapter);
-#endif
 
 void dump_hal_txpwr_info_2g(void *sel, _adapter *adapter, u8 rfpath_num, u8 max_tx_cnt);
 void dump_hal_txpwr_info_5g(void *sel, _adapter *adapter, u8 rfpath_num, u8 max_tx_cnt);
@@ -254,46 +252,4 @@ void dump_tx_power_by_rate(void *sel, _adapter *adapter);
 
 int rtw_get_phy_file_path(_adapter *adapter, const char *file_name);
 
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-#define MAC_FILE_FW_NIC			"FW_NIC.bin"
-#define MAC_FILE_FW_WW_IMG		"FW_WoWLAN.bin"
-#define PHY_FILE_MAC_REG		"MAC_REG.txt"
-
-#define PHY_FILE_AGC_TAB		"AGC_TAB.txt"
-#define PHY_FILE_PHY_REG		"PHY_REG.txt"
-#define PHY_FILE_PHY_REG_MP		"PHY_REG_MP.txt"
-#define PHY_FILE_PHY_REG_PG		"PHY_REG_PG.txt"
-
-#define PHY_FILE_RADIO_A		"RadioA.txt"
-#define PHY_FILE_RADIO_B		"RadioB.txt"
-#define PHY_FILE_RADIO_C		"RadioC.txt"
-#define PHY_FILE_RADIO_D		"RadioD.txt"
-#define PHY_FILE_TXPWR_TRACK	"TxPowerTrack.txt"
-#define PHY_FILE_TXPWR_LMT		"TXPWR_LMT.txt"
-
-#define PHY_FILE_WIFI_ANT_ISOLATION	"wifi_ant_isolation.txt"
-
-#define MAX_PARA_FILE_BUF_LEN	25600
-
-#define LOAD_MAC_PARA_FILE				BIT0
-#define LOAD_BB_PARA_FILE					BIT1
-#define LOAD_BB_PG_PARA_FILE				BIT2
-#define LOAD_BB_MP_PARA_FILE				BIT3
-#define LOAD_RF_PARA_FILE					BIT4
-#define LOAD_RF_TXPWR_TRACK_PARA_FILE	BIT5
-#define LOAD_RF_TXPWR_LMT_PARA_FILE		BIT6
-
-int phy_ConfigMACWithParaFile(IN PADAPTER	Adapter, IN char	*pFileName);
-int phy_ConfigBBWithParaFile(IN PADAPTER	Adapter, IN char	*pFileName, IN u32	ConfigType);
-int phy_ConfigBBWithPgParaFile(IN PADAPTER	Adapter, IN const char *pFileName);
-int phy_ConfigBBWithMpParaFile(IN PADAPTER	Adapter, IN char	*pFileName);
-int PHY_ConfigRFWithParaFile(IN	PADAPTER	Adapter, IN char	*pFileName, IN enum rf_path	eRFPath);
-int PHY_ConfigRFWithTxPwrTrackParaFile(IN PADAPTER	Adapter, IN char	*pFileName);
-#if CONFIG_TXPWR_LIMIT
-int PHY_ConfigRFWithPowerLimitTableParaFile(IN PADAPTER	Adapter, IN const char *pFileName);
-#endif
-void phy_free_filebuf_mask(_adapter *padapter, u8 mask);
-void phy_free_filebuf(_adapter *padapter);
-#endif /* CONFIG_LOAD_PHY_PARA_FROM_FILE */
-u8 phy_check_under_survey_ch(_adapter *adapter);
 #endif /* __HAL_COMMON_H__ */

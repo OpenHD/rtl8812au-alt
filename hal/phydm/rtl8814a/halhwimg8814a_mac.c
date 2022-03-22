@@ -20,7 +20,7 @@
 #if (RTL8814A_SUPPORT == 1)
 static BOOLEAN
 CheckPositive(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u32  Condition1,
 	u32  Condition2,
 	u32  Condition3,
@@ -53,15 +53,15 @@ u4Byte    driver3 = 0;
 				(pDM_Odm->type_alna & 0xFF00) << 8 |
 				(pDM_Odm->type_apa & 0xFF00)  << 16;
 
-	PHYDM_DBG(pDM_Odm, ODM_COMP_INIT,  
-	"===> CheckPositive (cond1, cond2, cond3, cond4) = (0x%X 0x%X 0x%X 0x%X)\n", cond1, cond2, cond3, cond4);
-	PHYDM_DBG(pDM_Odm, ODM_COMP_INIT,  
-	"===> CheckPositive (driver1, driver2, driver3, driver4) = (0x%X 0x%X 0x%X 0x%X)\n", driver1, driver2, driver3, driver4);
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+	("===> CheckPositive (cond1, cond2, cond3, cond4) = (0x%X 0x%X 0x%X 0x%X)\n", cond1, cond2, cond3, cond4));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+	("===> CheckPositive (driver1, driver2, driver3, driver4) = (0x%X 0x%X 0x%X 0x%X)\n", driver1, driver2, driver3, driver4));
 
-	PHYDM_DBG(pDM_Odm, ODM_COMP_INIT,  
-	"	(Platform, Interface) = (0x%X, 0x%X)\n", pDM_Odm->support_platform, pDM_Odm->support_interface);
-	PHYDM_DBG(pDM_Odm, ODM_COMP_INIT,  
-	"	(Board, Package) = (0x%X, 0x%X)\n", pDM_Odm->board_type, pDM_Odm->package_type);
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+	("	(Platform, Interface) = (0x%X, 0x%X)\n", pDM_Odm->support_platform, pDM_Odm->support_interface));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+	("	(Board, Package) = (0x%X, 0x%X)\n", pDM_Odm->board_type, pDM_Odm->package_type));
 
 
 	/*============== Value Defined Check ===============*/
@@ -102,7 +102,7 @@ u4Byte    driver3 = 0;
 }
 static BOOLEAN
 CheckNegative(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	u32  Condition1,
 	u32  Condition2
 )
@@ -263,7 +263,7 @@ u4Byte Array_MP_8814A_MAC_REG[] = {
 
 void
 odm_read_and_config_mp_8814a_mac_reg(
-	struct	dm_struct *  pDM_Odm
+	struct	PHY_DM_STRUCT *  pDM_Odm
 )
 {
 	u4Byte     i         = 0;
@@ -274,7 +274,7 @@ odm_read_and_config_mp_8814a_mac_reg(
 	
 	u4Byte	v1 = 0, v2 = 0, pre_v1 = 0, pre_v2 = 0;
 
-	PHYDM_DBG(pDM_Odm, ODM_COMP_INIT, "===> ODM_ReadAndConfig_MP_8814A_MAC_REG\n");
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_8814A_MAC_REG\n"));
 
 	while ((i + 1) < ArrayLen) {
 		v1 = Array[i];
@@ -286,14 +286,14 @@ odm_read_and_config_mp_8814a_mac_reg(
 				if (cCond == COND_ENDIF) {/*end*/
 					bMatched = TRUE;
 					bSkipped = FALSE;
-					PHYDM_DBG(pDM_Odm, ODM_COMP_INIT, "ENDIF\n");
+					ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("ENDIF\n"));
 				} else if (cCond == COND_ELSE) { /*else*/
 					bMatched = bSkipped?FALSE:TRUE;
-					PHYDM_DBG(pDM_Odm, ODM_COMP_INIT, "ELSE\n");
+					ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("ELSE\n"));
 				} else {/*if , else if*/
 					pre_v1 = v1;
 					pre_v2 = v2;
-					PHYDM_DBG(pDM_Odm, ODM_COMP_INIT, "IF or ELSE IF\n");
+					ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("IF or ELSE IF\n"));
 				}
 			} else if (v1 & BIT30) { /*negative condition*/
 				if (bSkipped == FALSE) {

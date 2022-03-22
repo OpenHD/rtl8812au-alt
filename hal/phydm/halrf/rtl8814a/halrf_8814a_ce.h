@@ -28,7 +28,7 @@
 #include "../halphyrf_ce.h"
 
 void configure_txpower_track_8814a(
-	struct txpwrtrack_cfg	*pConfig
+	struct _TXPWRTRACK_CFG	*pConfig
 	);
 
 VOID
@@ -59,7 +59,7 @@ ODM_TxPwrTrackSetPwr8814A(
 
 u8
 CheckRFGainOffset(
-	struct dm_struct	*pDM_Odm,
+	struct PHY_DM_STRUCT	*pDM_Odm,
 	enum pwrtrack_method 	Method,
 	u8				RFPath
 	);
@@ -84,7 +84,7 @@ phy_lc_calibrate_8814a(
 void	
 PHY_APCalibrate_8814A(		
 #if (DM_ODM_SUPPORT_TYPE & ODM_AP)
-	struct dm_struct	*		pDM_Odm,
+	struct PHY_DM_STRUCT	*		pDM_Odm,
 #else
 	IN	PADAPTER	pAdapter,
 #endif
@@ -94,13 +94,13 @@ PHY_APCalibrate_8814A(
 
 VOID	                                                 
 PHY_DPCalibrate_8814A(                                   
-	struct dm_struct	*	pDM_Odm                             
+	struct PHY_DM_STRUCT	*	pDM_Odm                             
 	);
 
 
 VOID phy_set_rf_path_switch_8814a(
-#if ((DM_ODM_SUPPORT_TYPE & ODM_AP) || (DM_ODM_SUPPORT_TYPE == ODM_CE))
-	struct dm_struct	*		pDM_Odm,
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	struct PHY_DM_STRUCT	*		pDM_Odm,
 #else
 	IN	PADAPTER	pAdapter,
 #endif

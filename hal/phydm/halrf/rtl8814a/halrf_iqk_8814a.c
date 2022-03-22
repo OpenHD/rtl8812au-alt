@@ -37,7 +37,7 @@ void DoIQK_8814A(
 	u8 		Threshold
 	)
 {
-	struct dm_struct    *	pDM_Odm = (struct dm_struct    *)pDM_VOID;
+	struct PHY_DM_STRUCT    *	pDM_Odm = (struct PHY_DM_STRUCT    *)pDM_VOID;
 
 	odm_reset_iqk_result(pDM_Odm);		
 
@@ -55,7 +55,7 @@ void DoIQK_8814A(
 	u8	Threshold
 	)
 {
-	struct dm_struct    *	pDM_Odm = (struct dm_struct    *)pDM_VOID;
+	struct PHY_DM_STRUCT    *	pDM_Odm = (struct PHY_DM_STRUCT    *)pDM_VOID;
 	boolean		bReCovery = (boolean) DeltaThermalIndex;
 
 	phy_iq_calibrate_8814a(pDM_Odm, bReCovery);
@@ -65,7 +65,7 @@ void DoIQK_8814A(
 
 VOID 
 _IQK_BackupMacBB_8814A(
-	IN struct dm_struct    *	pDM_Odm,
+	IN struct PHY_DM_STRUCT    *	pDM_Odm,
 	u32*		MAC_backup,
 	u32*		BB_backup,
 	u32*		Backup_MAC_REG,
@@ -87,7 +87,7 @@ _IQK_BackupMacBB_8814A(
 
 VOID
 _IQK_BackupRF_8814A(
-	IN struct dm_struct    *	pDM_Odm,
+	IN struct PHY_DM_STRUCT    *	pDM_Odm,
 	u32		RF_backup[][4],
 	u32*		Backup_RF_REG
 	)	
@@ -107,7 +107,7 @@ _IQK_BackupRF_8814A(
 
 VOID
 _IQK_AFESetting_8814A(
-	IN struct dm_struct    *	pDM_Odm,
+	IN struct PHY_DM_STRUCT    *	pDM_Odm,
 	IN boolean		Do_IQK
 	)
 {
@@ -150,7 +150,7 @@ _IQK_AFESetting_8814A(
 
 VOID
 _IQK_RestoreMacBB_8814A(
-	IN struct dm_struct    *		pDM_Odm,
+	IN struct PHY_DM_STRUCT    *		pDM_Odm,
 	u32*		MAC_backup,
 	u32*		BB_backup,
 	u32*		Backup_MAC_REG, 
@@ -170,7 +170,7 @@ _IQK_RestoreMacBB_8814A(
 
 VOID
 _IQK_RestoreRF_8814A(
-	IN struct dm_struct    *			pDM_Odm,
+	IN struct PHY_DM_STRUCT    *			pDM_Odm,
 	u32*			Backup_RF_REG,
 	u32 			RF_backup[][4]
 	)
@@ -195,7 +195,7 @@ _IQK_RestoreRF_8814A(
 
 VOID 
 PHY_ResetIQKResult_8814A(
-	IN	struct dm_struct    *	pDM_Odm
+	IN	struct PHY_DM_STRUCT    *	pDM_Odm
 )
 {
 	odm_write_4byte(pDM_Odm, 0x1b00, 0xf8000000);
@@ -214,7 +214,7 @@ PHY_ResetIQKResult_8814A(
 
 VOID 
 _IQK_ResetNCTL_8814A(
-	IN struct dm_struct    *	pDM_Odm
+	IN struct PHY_DM_STRUCT    *	pDM_Odm
 )
 { 
 	odm_write_4byte(pDM_Odm, 0x1b00, 0xf8000000);
@@ -226,7 +226,7 @@ _IQK_ResetNCTL_8814A(
 
 VOID 
 _IQK_ConfigureMAC_8814A(
-	IN struct dm_struct    *		pDM_Odm
+	IN struct PHY_DM_STRUCT    *		pDM_Odm
 	)
 {
 	// ========MAC register setting========
@@ -249,8 +249,8 @@ _LOK_One_Shot(
 	IN	void*		pDM_VOID
 )
 {	
-	struct dm_struct    *	pDM_Odm = (struct dm_struct    *)pDM_VOID;
-	struct dm_iqk_info	*	pIQK_info = &pDM_Odm->IQK_info;
+	struct PHY_DM_STRUCT    *	pDM_Odm = (struct PHY_DM_STRUCT    *)pDM_VOID;
+	struct _IQK_INFORMATION	*	pIQK_info = &pDM_Odm->IQK_info;
 	u8		Path = 0, delay_count = 0, ii;
 	boolean		LOK_notready = FALSE;
 	u32		LOK_temp1 = 0, LOK_temp2 = 0;
@@ -306,12 +306,12 @@ _LOK_One_Shot(
 				("==>S%d LOK Fail!!!\n", Path));
 			odm_set_rf_reg(pDM_Odm, Path, 0x8, bRFRegOffsetMask, 0x08400);
 		}
-		pIQK_info->lok_fail[Path] = LOK_notready;
+		pIQK_info->LOK_fail[Path] = LOK_notready;
 		
 	}
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, 
 		("LOK0_notready = %d, LOK1_notready = %d, LOK2_notready = %d, LOK3_notready = %d\n", 
-		pIQK_info->lok_fail[0], pIQK_info->lok_fail[1], pIQK_info->lok_fail[2], pIQK_info->lok_fail[3]));
+		pIQK_info->LOK_fail[0], pIQK_info->LOK_fail[1], pIQK_info->LOK_fail[2], pIQK_info->LOK_fail[3]));
 }
 
 VOID
@@ -319,8 +319,8 @@ _IQK_One_Shot(
 	IN	void*		pDM_VOID
 )
 {	
-	struct dm_struct    *	pDM_Odm = (struct dm_struct    *)pDM_VOID;
-	struct dm_iqk_info	*	pIQK_info = &pDM_Odm->IQK_info;
+	struct PHY_DM_STRUCT    *	pDM_Odm = (struct PHY_DM_STRUCT    *)pDM_VOID;
+	struct _IQK_INFORMATION	*	pIQK_info = &pDM_Odm->IQK_info;
 	u8		Path = 0, delay_count = 0, cal_retry = 0, idx;
 	boolean		notready = TRUE, fail = TRUE;
 	u32		IQK_CMD;
@@ -345,7 +345,7 @@ _IQK_One_Shot(
 			while(fail){
 				odm_set_bb_reg(pDM_Odm, 0x9a4, BIT(21)|BIT(20), Path);	
 				if(idx == TX_IQK){
-					IQK_CMD = (0xf8000001|(*pDM_Odm->band_width+3)<<8|(1<<(4+Path)));
+					IQK_CMD = (0xf8000001|(*pDM_Odm->p_band_width+3)<<8|(1<<(4+Path)));
 					
 					ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_TRACE, 
 						("TXK_Trigger = 0x%x\n", IQK_CMD));
@@ -357,7 +357,7 @@ _IQK_One_Shot(
 					odm_write_4byte(pDM_Odm, 0x1b00, IQK_CMD);
 				}
 				else if(idx == RX_IQK){
-					IQK_CMD = (0xf8000001|(9-*pDM_Odm->band_width)<<8|(1<<(4+Path)));
+					IQK_CMD = (0xf8000001|(9-*pDM_Odm->p_band_width)<<8|(1<<(4+Path)));
 
 					ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_TRACE, 
 						("TXK_Trigger = 0x%x\n", IQK_CMD));
@@ -416,7 +416,7 @@ _IQK_One_Shot(
 			}
 			
 			if(idx == RX_IQK){
-				if(pIQK_info->iqk_fail[TX_IQK][Path] == FALSE)			// TXIQK success in RXIQK
+				if(pIQK_info->IQK_fail[TX_IQK][Path] == FALSE)			// TXIQK success in RXIQK
 					odm_write_4byte( pDM_Odm, 0x1b38, pIQK_info->iqc_matrix[TX_IQK][Path]);
 				else
 					odm_set_bb_reg(pDM_Odm, IQK_Apply[Path], BIT0, 0x0);
@@ -425,18 +425,18 @@ _IQK_One_Shot(
 					odm_set_bb_reg(pDM_Odm, IQK_Apply[Path], (BIT11|BIT10), 0x0);
 			}		
 			
-			pIQK_info->iqk_fail[idx][Path] = fail;
+			pIQK_info->IQK_fail[idx][Path] = fail;
 			
 		}
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, 
 			("IQK0_fail = %d, IQK1_fail = %d, IQK2_fail = %d, IQK3_fail = %d\n", 
-			pIQK_info->iqk_fail[idx][0], pIQK_info->iqk_fail[idx][1], pIQK_info->iqk_fail[idx][2], pIQK_info->iqk_fail[idx][3]));
+			pIQK_info->IQK_fail[idx][0], pIQK_info->IQK_fail[idx][1], pIQK_info->IQK_fail[idx][2], pIQK_info->IQK_fail[idx][3]));
 	}
 }
 
 VOID
 _IQK_Tx_8814A(
-	IN struct dm_struct    *		pDM_Odm,
+	IN struct PHY_DM_STRUCT    *		pDM_Odm,
 	IN u8 chnlIdx
 	)
 {	
@@ -454,7 +454,7 @@ _IQK_Tx_8814A(
 	odm_set_bb_reg(pDM_Odm, 0x1894, (BIT11|BIT10|BIT0), 0x401);
 	odm_set_bb_reg(pDM_Odm, 0x1a94, (BIT11|BIT10|BIT0), 0x401);
 	
-	if(*pDM_Odm->band_type == ODM_BAND_5G)
+	if(*pDM_Odm->p_band_type == ODM_BAND_5G)
 		odm_write_4byte(pDM_Odm, 0x1b00, 0xf8000ff1);
 	else
 		odm_write_4byte(pDM_Odm, 0x1b00, 0xf8000ef1);
@@ -471,7 +471,7 @@ _IQK_Tx_8814A(
 
 VOID	
 _phy_iq_calibrate_8814a(
-	IN struct dm_struct    *		pDM_Odm,
+	IN struct PHY_DM_STRUCT    *		pDM_Odm,
 	IN u8		Channel
 	)
 {
@@ -504,7 +504,7 @@ phy_iq_calibrate_8814a(
 	IN	boolean 	bReCovery
 	)
 {
-	struct dm_struct    *	pDM_Odm = (struct dm_struct    *)pDM_VOID;
+	struct PHY_DM_STRUCT    *	pDM_Odm = (struct PHY_DM_STRUCT    *)pDM_VOID;
 
 #if !(DM_ODM_SUPPORT_TYPE & ODM_AP)
 	PADAPTER 		pAdapter = pDM_Odm->adapter;
@@ -541,15 +541,15 @@ PHY_IQCalibrate_8814A_Init(
 	IN	void*		pDM_VOID
 	)
 {
-	struct dm_struct    *	pDM_Odm = (struct dm_struct    *)pDM_VOID;
-	struct dm_iqk_info	*pIQK_info = &pDM_Odm->IQK_info;
+	struct PHY_DM_STRUCT    *	pDM_Odm = (struct PHY_DM_STRUCT    *)pDM_VOID;
+	struct _IQK_INFORMATION	*pIQK_info = &pDM_Odm->IQK_info;
 	u8	ii, jj;
 	
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("=====>PHY_IQCalibrate_8814A_Init\n"));
 	for(jj = 0; jj < 2; jj++){
 		for(ii = 0; ii < NUM; ii++){
-			pIQK_info->lok_fail[ii] = TRUE;
-			pIQK_info->iqk_fail[jj][ii] = TRUE;
+			pIQK_info->LOK_fail[ii] = TRUE;
+			pIQK_info->IQK_fail[jj][ii] = TRUE;
 			pIQK_info->iqc_matrix[jj][ii] = 0x20000000;
 		}
 	}

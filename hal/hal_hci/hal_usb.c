@@ -35,23 +35,6 @@ int	usb_init_recv_priv(_adapter *padapter, u16 ini_in_buf_sz)
 #endif /* CONFIG_RX_INDICATE_QUEUE */
 #endif /* PLATFORM_FREEBSD */
 
-#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
-#ifdef PLATFORM_LINUX
-	precvpriv->int_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (precvpriv->int_in_urb == NULL) {
-		res = _FAIL;
-		RTW_INFO("alloc_urb for interrupt in endpoint fail !!!!\n");
-		goto exit;
-	}
-#endif /* PLATFORM_LINUX */
-	precvpriv->int_in_buf = rtw_zmalloc(ini_in_buf_sz);
-	if (precvpriv->int_in_buf == NULL) {
-		res = _FAIL;
-		RTW_INFO("alloc_mem for interrupt in endpoint fail !!!!\n");
-		goto exit;
-	}
-#endif /* CONFIG_USB_INTERRUPT_IN_PIPE */
-
 	/* init recv_buf */
 	_rtw_init_queue(&precvpriv->free_recv_buf_queue);
 	_rtw_init_queue(&precvpriv->recv_buf_pending_queue);
@@ -162,14 +145,6 @@ void usb_free_recv_priv(_adapter *padapter, u16 ini_in_buf_sz)
 	if (precvpriv->pallocated_recv_buf)
 		rtw_mfree(precvpriv->pallocated_recv_buf, NR_RECVBUFF * sizeof(struct recv_buf) + 4);
 
-#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
-#ifdef PLATFORM_LINUX
-	if (precvpriv->int_in_urb)
-		usb_free_urb(precvpriv->int_in_urb);
-#endif
-	if (precvpriv->int_in_buf)
-		rtw_mfree(precvpriv->int_in_buf, ini_in_buf_sz);
-#endif /* CONFIG_USB_INTERRUPT_IN_PIPE */
 
 #ifdef PLATFORM_LINUX
 
@@ -333,13 +308,6 @@ u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
-	
-/* WLANON PAGE0_REG needs to add an offset 0x8000 */
-#if defined(CONFIG_RTL8710B)
-	if(wvalue >= 0x0000 && wvalue < 0x0100)
-		wvalue |= 0x8000;
-#endif
-
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 			  &data, len, requesttype);
 
@@ -363,13 +331,6 @@ u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
-	
-/* WLANON PAGE0_REG needs to add an offset 0x8000 */
-#if defined(CONFIG_RTL8710B)
-	if(wvalue >= 0x0000 && wvalue < 0x0100)
-		wvalue |= 0x8000;
-#endif
-
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 			  &data, len, requesttype);
 
@@ -394,13 +355,6 @@ u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
-	
-/* WLANON PAGE0_REG needs to add an offset 0x8000 */
-#if defined(CONFIG_RTL8710B)
-	if(wvalue >= 0x0000 && wvalue < 0x0100)
-		wvalue |= 0x8000;
-#endif
-
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 			  &data, len, requesttype);
 
@@ -425,14 +379,8 @@ int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
-	data = val;
-	
-/* WLANON PAGE0_REG needs to add an offset 0x8000 */
-#if defined(CONFIG_RTL8710B)
-	if(wvalue >= 0x0000 && wvalue < 0x0100)
-		wvalue |= 0x8000;
-#endif
 
+	data = val;
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 				&data, len, requesttype);
 
@@ -457,14 +405,8 @@ int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
+
 	data = val;
-
-/* WLANON PAGE0_REG needs to add an offset 0x8000 */
-#if defined(CONFIG_RTL8710B)
-	if(wvalue >= 0x0000 && wvalue < 0x0100)
-		wvalue |= 0x8000;
-#endif
-
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 				&data, len, requesttype);
 
@@ -491,13 +433,6 @@ int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 	data = val;
-
-/* WLANON PAGE0_REG needs to add an offset 0x8000 */
-#if defined(CONFIG_RTL8710B)
-	if(wvalue >= 0x0000 && wvalue < 0x0100)
-		wvalue |= 0x8000;
-#endif
-
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 				&data, len, requesttype);
 

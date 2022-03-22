@@ -46,6 +46,7 @@ void interrupt_handler_8814au(_adapter *padapter, u16 pkt_len, u8 *pbuf)
 	}
 #endif
 
+
 #ifdef CONFIG_LPS_LCLK
 	if (pHalData->IntArray[0]  & IMR_CPWM_88E) {
 		_rtw_memcpy(&pwr_rpt.state, &(pbuf[USB_INTR_CONTENT_CPWM1_OFFSET]), 1);
@@ -75,6 +76,7 @@ void interrupt_handler_8814au(_adapter *padapter, u16 pkt_len, u8 *pbuf)
 			if (pHalData->IntArray[0] & IMR_TBDER_88E)
 				RTW_INFO("%s: HISR_TXBCNERR\n", __func__);
 #endif /* 0 */
+
 
 			if(check_fwstate(pmlmepriv, WIFI_AP_STATE))
 			{
@@ -182,9 +184,8 @@ int recvbuf2recvframe(PADAPTER padapter, void *ptr)
 		}
 
 #ifdef CONFIG_RX_PACKET_APPEND_FCS
-                if (check_fwstate(&padapter->mlmepriv, WIFI_MONITOR_STATE) == _FALSE)
-                        if ((pattrib->pkt_rpt_type == NORMAL_RX) && (pHalData->ReceiveConfig & RCR_APPFCS))
-                                pattrib->pkt_len -= IEEE80211_FCS_LEN;
+		if(pattrib->pkt_rpt_type == NORMAL_RX)
+			pattrib->pkt_len -= IEEE80211_FCS_LEN;
 #endif
 		if (rtw_os_alloc_recvframe(padapter, precvframe,
 			(pbuf + pattrib->shift_sz + pattrib->drvinfo_sz + RXDESC_SIZE), pskb) == _FAIL) {
@@ -299,10 +300,6 @@ void rtl8814au_set_intf_ops(struct _io_ops	*pops)
 	pops->_read_port_cancel = &usb_read_port_cancel;
 	pops->_write_port_cancel = &usb_write_port_cancel;
 
-#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
-	pops->_read_interrupt = &usb_read_interrupt;
-#endif
-
 }
 
 void rtl8814au_set_hw_type(struct dvobj_priv *pdvobj)
@@ -310,3 +307,4 @@ void rtl8814au_set_hw_type(struct dvobj_priv *pdvobj)
 	pdvobj->HardwareType = HARDWARE_TYPE_RTL8814AU;
 	RTW_INFO("CHIP TYPE: RTL8814\n");
 }
+

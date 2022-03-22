@@ -38,7 +38,7 @@
 
 u8
 CheckRFGainOffset(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	enum pwrtrack_method 	Method,
 	u8				RFPath
 	)
@@ -48,7 +48,7 @@ CheckRFGainOffset(
 	BOOLEAN	bPositive = FALSE;
 	u32	bitMask = 0;
 	u8	Final_OFDM_Swing_Index = 0, TxScalingUpperBound = 28, TxScalingLowerBound = 4;// upper bound +2dB, lower bound -10dB
-	struct dm_rf_calibration_struct  *  prf_calibrate_info = &(pDM_Odm->rf_calibrate_info);
+	struct odm_rf_calibration_structure  *  prf_calibrate_info = &(pDM_Odm->rf_calibrate_info);
 	if(Method == MIX_MODE)	//normal Tx power tracking
 	{
 		ODM_RT_TRACE(pDM_Odm,ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD,("is 8814 MP chip\n"));
@@ -130,10 +130,10 @@ ODM_TxPwrTrackSetPwr8814A(
 	u8 				ChannelMappedIndex
 	)
 {
-	struct dm_struct	*		pDM_Odm = (struct dm_struct	*)pDM_VOID;
+	struct PHY_DM_STRUCT	*		pDM_Odm = (struct PHY_DM_STRUCT	*)pDM_VOID;
 		PADAPTER		Adapter = pDM_Odm->adapter;
 		PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-		struct dm_rf_calibration_struct  *	prf_calibrate_info = &(pDM_Odm->rf_calibrate_info);
+		struct odm_rf_calibration_structure  *	prf_calibrate_info = &(pDM_Odm->rf_calibrate_info);
 		u8			Final_OFDM_Swing_Index = 0; 
 
 		if (Method == MIX_MODE)			
@@ -216,15 +216,15 @@ GetDeltaSwingTable_8814A(
 	u8* 			*TemperatureDOWN_B	
 	)
 {
-	struct dm_struct	*	pDM_Odm = (struct dm_struct	*)pDM_VOID;
+	struct PHY_DM_STRUCT	*	pDM_Odm = (struct PHY_DM_STRUCT	*)pDM_VOID;
     PADAPTER        Adapter   		 = pDM_Odm->adapter;
-	struct dm_rf_calibration_struct  *  	prf_calibrate_info = &(pDM_Odm->rf_calibrate_info);
+	struct odm_rf_calibration_structure  *  	prf_calibrate_info = &(pDM_Odm->rf_calibrate_info);
 	HAL_DATA_TYPE  	*pHalData  		 = GET_HAL_DATA(Adapter);
 	u8		TxRate			= 0xFF;
 	u8         	channel   		 = pHalData->current_channel;
 
 	
-	if (*(pDM_Odm->mp_mode) == TRUE) {
+	if (*(pDM_Odm->p_mp_mode) == TRUE) {
 	#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
 		#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
 			#if (MP_DRIVER == 1)
@@ -239,7 +239,7 @@ GetDeltaSwingTable_8814A(
 		#endif	
 	#endif
 	} else {
-		u2Byte	rate	 = *(pDM_Odm->forced_data_rate);
+		u2Byte	rate	 = *(pDM_Odm->p_forced_data_rate);
 		
 		if (!rate) { /*auto rate*/
 			if (pDM_Odm->tx_rate != 0xFF) {
@@ -305,15 +305,15 @@ GetDeltaSwingTable_8814A_PathCD(
 	u8* 			*TemperatureDOWN_D	
 	)
 {
-	struct dm_struct	*	pDM_Odm = (struct dm_struct	*)pDM_VOID;
+	struct PHY_DM_STRUCT	*	pDM_Odm = (struct PHY_DM_STRUCT	*)pDM_VOID;
     PADAPTER        Adapter   		 = pDM_Odm->adapter;
-	struct dm_rf_calibration_struct  *  	prf_calibrate_info = &(pDM_Odm->rf_calibrate_info);
+	struct odm_rf_calibration_structure  *  	prf_calibrate_info = &(pDM_Odm->rf_calibrate_info);
 	HAL_DATA_TYPE  	*pHalData  		 = GET_HAL_DATA(Adapter);
 	u8		TxRate			= 0xFF;
 	u8         	channel   		 = pHalData->current_channel;
 
 	
-	if (*(pDM_Odm->mp_mode) == TRUE) {
+	if (*(pDM_Odm->p_mp_mode) == TRUE) {
 	#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
 		#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
 			#if (MP_DRIVER == 1)
@@ -328,7 +328,7 @@ GetDeltaSwingTable_8814A_PathCD(
 		#endif	
 	#endif
 	} else {
-		u2Byte	rate	 = *(pDM_Odm->forced_data_rate);
+		u2Byte	rate	 = *(pDM_Odm->p_forced_data_rate);
 		
 		if (!rate) { /*auto rate*/
 			if (pDM_Odm->tx_rate != 0xFF) {
@@ -383,7 +383,7 @@ GetDeltaSwingTable_8814A_PathCD(
 }
 
 void configure_txpower_track_8814a(
-	struct txpwrtrack_cfg	*pConfig
+	struct _TXPWRTRACK_CFG	*pConfig
 	)
 {
 	pConfig->swing_table_size_cck = CCK_TABLE_SIZE;
@@ -402,7 +402,7 @@ void configure_txpower_track_8814a(
 
 VOID	
 _phy_lc_calibrate_8814a(
-	IN struct dm_struct	*		pDM_Odm,
+	IN struct PHY_DM_STRUCT	*		pDM_Odm,
 	IN	BOOLEAN		is2T
 	)
 {
@@ -447,7 +447,7 @@ _phy_lc_calibrate_8814a(
 VOID	
 phy_APCalibrate_8814A(
 #if (DM_ODM_SUPPORT_TYPE & ODM_AP)
-	IN struct dm_struct	*		pDM_Odm,
+	IN struct PHY_DM_STRUCT	*		pDM_Odm,
 #else
 	IN	PADAPTER	pAdapter,
 #endif
@@ -464,7 +464,7 @@ phy_lc_calibrate_8814a(
 	)
 {
 	BOOLEAN 		bStartContTx = FALSE, bSingleTone = FALSE, bCarrierSuppression = FALSE;
-	struct dm_struct	*		pDM_Odm = (struct dm_struct	*)pDM_VOID;
+	struct PHY_DM_STRUCT	*		pDM_Odm = (struct PHY_DM_STRUCT	*)pDM_VOID;
 #if !(DM_ODM_SUPPORT_TYPE & ODM_AP)
 	PADAPTER 		pAdapter = pDM_Odm->adapter;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);	
@@ -494,7 +494,7 @@ phy_lc_calibrate_8814a(
 VOID
 PHY_APCalibrate_8814A(
 #if (DM_ODM_SUPPORT_TYPE & ODM_AP)
-	IN struct dm_struct	*		pDM_Odm,
+	IN struct PHY_DM_STRUCT	*		pDM_Odm,
 #else
 	IN	PADAPTER	pAdapter,
 #endif
@@ -507,7 +507,7 @@ PHY_APCalibrate_8814A(
 
 VOID	                                                 
 PHY_DPCalibrate_8814A(                                   
-	IN 	struct dm_struct	*	pDM_Odm                             
+	IN 	struct PHY_DM_STRUCT	*	pDM_Odm                             
 	)
 {
 }
@@ -538,7 +538,7 @@ BOOLEAN PHY_QueryRFPathSwitch_8814A(
 
 VOID _phy_SetRFPathSwitch_8814A(
 #if (DM_ODM_SUPPORT_TYPE & ODM_AP)
-	IN struct dm_struct	*		pDM_Odm,
+	IN struct PHY_DM_STRUCT	*		pDM_Odm,
 #else
 	IN	PADAPTER	pAdapter,
 #endif
@@ -548,8 +548,8 @@ VOID _phy_SetRFPathSwitch_8814A(
 {
 }
 VOID phy_set_rf_path_switch_8814a(
-#if ((DM_ODM_SUPPORT_TYPE & ODM_AP) || (DM_ODM_SUPPORT_TYPE == ODM_CE))
-	IN struct dm_struct	*		pDM_Odm,
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	IN struct PHY_DM_STRUCT	*		pDM_Odm,
 #else
 	IN	PADAPTER	pAdapter,
 #endif

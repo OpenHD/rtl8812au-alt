@@ -40,7 +40,7 @@
 
 u8
 CheckRFGainOffset(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	PWRTRACK_METHOD 	Method,
 	u8				RFPath
 	)
@@ -109,7 +109,7 @@ CheckRFGainOffset(
 
 VOID
 ODM_TxPwrTrackSetPwr8814A(
-	struct dm_struct    *pDM_Odm,
+	struct PHY_DM_STRUCT    *pDM_Odm,
 	PWRTRACK_METHOD 	Method,
 	u8 				RFPath,
 	u8 				ChannelMappedIndex
@@ -190,7 +190,7 @@ ODM_TxPwrTrackSetPwr8814A(
 
 VOID
 GetDeltaSwingTable_8814A(
-	IN 	struct dm_struct    *pDM_Odm,
+	IN 	struct PHY_DM_STRUCT    *pDM_Odm,
 	OUT pu8 			*TemperatureUP_A,
 	OUT pu8 			*TemperatureDOWN_A,
 	OUT pu8 			*TemperatureUP_B,
@@ -241,7 +241,7 @@ GetDeltaSwingTable_8814A(
 
 VOID
 GetDeltaSwingTable_8814A_PathCD(
-	IN 	struct dm_struct    *pDM_Odm,
+	IN 	struct PHY_DM_STRUCT    *pDM_Odm,
 	OUT pu8 			*TemperatureUP_C,
 	OUT pu8 			*TemperatureDOWN_C,
 	OUT pu8 			*TemperatureUP_D,
@@ -325,7 +325,7 @@ ODM_CheckPowerStatus(
 {
 	/*
 	   HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
-	   struct dm_struct    *pDM_Odm = &pHalData->DM_OutSrc;
+	   struct PHY_DM_STRUCT    *pDM_Odm = &pHalData->DM_OutSrc;
 	   RT_RF_POWER_STATE 	rtState;
 	   PMGNT_INFO			pMgntInfo	= &(Adapter->MgntInfo);
 

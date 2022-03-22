@@ -30,7 +30,7 @@
 
 void
 odm_read_and_config_mp_8814a_mac_reg(/* TC: Test Chip, MP: MP Chip*/
-	struct dm_struct    *pDM_Odm
+	struct PHY_DM_STRUCT    *pDM_Odm
 );
 u4Byte odm_get_version_mp_8814a_mac_reg(void);
 

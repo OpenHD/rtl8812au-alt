@@ -381,7 +381,7 @@ void rtl8814_set_FwPwrMode_cmd(PADAPTER padapter, u8 PSMode)
 	/* AllON(0x0C), RFON(0x04), RFOFF(0x00) */
 	SET_8814A_H2CCMD_PWRMODE_PARM_PWR_STATE(u1H2CSetPwrMode, PowerState);
 
-	//SET_8814A_H2CCMD_PWRMODE_PARM_BYTE5(u1H2CSetPwrMode, pwrModeByte5);
+	SET_8814A_H2CCMD_PWRMODE_PARM_BYTE5(u1H2CSetPwrMode, pwrModeByte5);
 
 #ifdef CONFIG_BT_COEXIST
 	if (_TRUE == pHalData->EEPROMBluetoothCoexist)
@@ -836,7 +836,7 @@ void rtl8814_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus)
 			DLBcnCount++;
 			do
 			{
-				rtw_yield_os();
+				yield();
 				//rtw_mdelay_os(10);
 				// check rsvd page download OK.
 				rtw_hal_get_hwreg(padapter, HW_VAR_BCN_VALID, (u8*)(&bcn_valid));
@@ -879,7 +879,7 @@ void rtl8814_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus)
 					
 					do
 					{
-						rtw_yield_os();
+						yield();
 						//rtw_mdelay_os(10);
 						// check rsvd page download OK.
 						rtw_hal_get_hwreg(padapter, HW_VAR_BCN_VALID, (u8*)(&bcn_valid));
@@ -1168,7 +1168,7 @@ void rtl8814_iqk_done(_adapter* padapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct submit_ctx	*iqk_sctx = &pHalData->iqk_sctx;
-	
+
 	rtw_sctx_done(&iqk_sctx);
 }
 
@@ -1183,7 +1183,7 @@ C2HTxBeamformingHandler_8814(
 #if (BEAMFORMING_SUPPORT == 1)
 	u8	status = CmdBuf[0] & BIT0;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	struct dm_struct		*		pDM_Odm = &pHalData->odmpriv;
+	struct PHY_DM_STRUCT		*		pDM_Odm = &pHalData->odmpriv;
 	/*Beamforming_CheckSoundingSuccess(Adapter, status);*/
 	phydm_beamforming_end_sw(pDM_Odm, status);
 #endif/*(BEAMFORMING_SUPPORT == 1)*/
@@ -1209,7 +1209,7 @@ C2HTxFeedbackHandler_8814(
 s32 c2h_handler_8814a(_adapter *adapter, u8 id, u8 seq, u8 plen, u8 *payload)
 {
 	//HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	//struct dm_struct		*		pDM_Odm = &pHalData->odmpriv;
+	//struct PHY_DM_STRUCT		*		pDM_Odm = &pHalData->odmpriv;
 	s32 ret = _SUCCESS;
 
 	switch (id) {
@@ -1354,7 +1354,7 @@ static void SetFwRsvdPagePkt_BTCoex(PADAPTER padapter)
 	if (BufIndex < (MaxRsvdPageBufSize - PageSize)) {
 		BufIndex = TxDescOffset + (MaxRsvdPageBufSize - PageSize);
 		TotalPageNum = BCNQ_PAGE_NUM_8814-1;
-		
+
 	}
 
 	/* 3 (6) BT Qos null data */
@@ -1401,8 +1401,8 @@ static void SetFwRsvdPagePkt_BTCoex(PADAPTER padapter)
                 #ifdef CONFIG_WOWLAN
 		    rtl8814_set_FwAoacRsvdPage_cmd(padapter, &RsvdPageLoc);
                 #endif
-	} 
-	
+	}
+
 	return;
 
 error:
@@ -1464,13 +1464,13 @@ void rtl8812a_download_BTCoex_AP_mode_rsvd_page(PADAPTER padapter)
 			DLBcnCount++;
 			do
 			{
-				rtw_yield_os();
+				yield();
 				//rtw_mdelay_os(10);
 				// check rsvd page download OK.
 				rtw_hal_get_hwreg(padapter, HW_VAR_BCN_VALID, (u8*)(&bcn_valid));
 				poll++;
 			} while (!bcn_valid && (poll%10) != 0 && !RTW_CANNOT_RUN(padapter));
-			
+
 		} while (!bcn_valid && DLBcnCount <= 100 && !RTW_CANNOT_RUN(padapter));
 
 		if (RTW_CANNOT_RUN(padapter))

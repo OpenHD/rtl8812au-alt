@@ -21,10 +21,6 @@
 
 //#include <drv_types.h>
 #include <rtl8814a_hal.h>
-#include "phydm_antdiv.h"
-
-#define REG_BCN_INTERVAL				0x0554
-
 extern u32 array_length_mp_8814a_fw_ap;
 extern u8 array_mp_8814a_fw_ap[];
 extern u32 array_length_mp_8814a_fw_nic;
@@ -177,6 +173,9 @@ _BlockWrite_8814A(
 	blockCount_p1 = buffSize / blockSize_p1;
 	remainSize_p1 = buffSize % blockSize_p1;
 
+	if(blockCount_p1)
+	RT_TRACE(COMP_INIT,DBG_LOUD,("_BlockWrite_8814A[P1]  ::buffSize( %d) blockSize_p1( %d) blockCount_p1( %d), remainSize_p1( %d)\n",buffSize ,blockSize_p1,blockCount_p1, remainSize_p1));	
+
 	for(i = 0 ; i < blockCount_p1 ; i++){
 		#if (DEV_BUS_TYPE == RT_USB_INTERFACE)
 		rtw_writeN(Adapter, (FW_START_ADDRESS + i * blockSize_p1), blockSize_p1,(bufferPtr + i * blockSize_p1));
@@ -192,6 +191,9 @@ _BlockWrite_8814A(
 		blockCount_p2=remainSize_p1/blockSize_p2;
 		remainSize_p2=remainSize_p1%blockSize_p2;
 
+		if(blockCount_p2)
+		RT_TRACE(COMP_INIT,DBG_LOUD,("_BlockWrite_8814A[P2]  ::buffSize_p2( %d) blockSize_p2( %d) blockCount_p2( %d) remainSize_p2( %d)\n",(buffSize-offset), blockSize_p2 ,blockCount_p2, remainSize_p2));	
+
 		#if (DEV_BUS_TYPE == RT_USB_INTERFACE)
 		for(i = 0 ; i < blockCount_p2 ; i++){	
 			rtw_writeN(Adapter, (FW_START_ADDRESS + offset+i*blockSize_p2), blockSize_p2,(bufferPtr + offset+i*blockSize_p2));
@@ -205,7 +207,9 @@ _BlockWrite_8814A(
 		offset=(blockCount_p1 * blockSize_p1)+(blockCount_p2*blockSize_p2);		
 
 		blockCount_p3 = remainSize_p2 /blockSize_p3;
-	 
+
+		RT_TRACE(COMP_INIT,DBG_LOUD,("_BlockWrite_8814A[P3]  ::buffSize_p3( %d) blockSize_p3( %d) blockCount_p3( %d) \n",(buffSize-offset),blockSize_p3, blockCount_p3));	
+		 
 		for(i = 0 ; i < blockCount_p3 ; i++){
 			rtw_write8(Adapter, (FW_START_ADDRESS + offset + i), *(bufferPtr +offset+ i));
 		}
@@ -282,6 +286,7 @@ _WriteFW_8814A(
 		page = pageNums;
 		_PageWrite_8814A(Adapter,page, (bufferPtr+offset),remainSize);
 	}	
+	RT_TRACE(COMP_INIT, DBG_LOUD, ("_WriteFW_8814A Done- for Normal chip.\n"));
 }
 
 VOID
@@ -504,36 +509,6 @@ SetDownLoadFwRsvdPagePkt_8814A(
 	//ReturnGenTempBuffer(pAdapter, pGenBufReservedPagePacket);
 }
 
-/* ************************************************************************************
- *
- * 20100209 Joseph:
- * This function is used only for 92C to set REG_BCN_CTRL(0x550) register.
- * We just reserve the value of the register in variable pHalData->RegBcnCtrlVal and then operate
- * the value of the register via atomic operation.
- * This prevents from race condition when setting this register.
- * The value of pHalData->RegBcnCtrlVal is initialized in HwConfigureRTL8192CE() function.
- *   */
-static void SetBcnCtrlReg(
-	PADAPTER	padapter,
-	u8		SetBits,
-	u8		ClearBits)
-{
-	PHAL_DATA_TYPE pHalData;
-	u8 RegBcnCtrlVal = 0;
-
-	pHalData = GET_HAL_DATA(padapter);
-	RegBcnCtrlVal = rtw_read8(padapter, REG_BCN_CTRL);
-
-	RegBcnCtrlVal |= SetBits;
-	RegBcnCtrlVal &= ~ClearBits;
-
-#if 0
-	/* #ifdef CONFIG_SDIO_HCI */
-	if (pHalData->sdio_himr & (SDIO_HIMR_TXBCNOK_MSK | SDIO_HIMR_TXBCNERR_MSK))
-		RegBcnCtrlVal |= EN_TXBCN_RPT;
-#endif
-	rtw_write8(padapter, REG_BCN_CTRL, RegBcnCtrlVal);
-}
 
 VOID
 HalROMDownloadFWRSVDPage8814A(
@@ -742,10 +717,10 @@ _FWFreeToGo8814A(
 	} while ((counter++ < 100) && (!(value32 &  CPU_DL_READY)));
 
 	if (counter >= 100) {
-		RTW_ERR("_FWFreeToGo8814A:: FW init fail ! REG_8051FW_CTRL_8814A:0x%08x .\n", value32);		
+		RT_TRACE(COMP_INIT, DBG_SERIOUS, ("_FWFreeToGo8814A:: FW init fail ! REG_8051FW_CTRL_8814A:0x%08x .\n", value32));		
 		return _FAIL;
 	}
-	RTW_INFO("_FWFreeToGo8814A:: FW init ok ! REG_8051FW_CTRL_8814A:0x%08x .\n", value32);
+	RT_TRACE(COMP_INIT, DBG_LOUD, ("_FWFreeToGo8814A:: FW init ok ! REG_8051FW_CTRL_8814A:0x%08x .\n", value32));
 
 	
 	return _SUCCESS;
@@ -780,6 +755,7 @@ FirmwareDownload8814A(
 	u32				FirmwareLen;
 
 
+	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __FUNCTION__));
 	pFirmware = (PRT_FIRMWARE_8814)rtw_zmalloc(sizeof(RT_FIRMWARE_8814));
 	if(!pFirmware)
 	{
@@ -1493,7 +1469,7 @@ hal_GetChnlGroup8814A(
 	return bIn24G;
 }
 
-#if 0
+
 static void
 hal_ReadPowerValueFromPROM8814A(
 	IN	PADAPTER 		Adapter,
@@ -1772,7 +1748,6 @@ hal_ReadPowerValueFromPROM8814A(
 	}
 
 }
-#endif
 
 VOID
 HALBT_InitHalVars(
@@ -1864,7 +1839,7 @@ hal_ReadPROMVersion8814A(
 			pHalData->EEPROMVersion = EEPROM_Default_Version;					
 	}
 }
-#if 0
+
 void
 hal_ReadTxPowerInfo8814A(
 	IN	PADAPTER 		Adapter,
@@ -1967,36 +1942,6 @@ hal_ReadTxPowerInfo8814A(
 	RTW_INFO("EEPROMRegulatory = 0x%x\n", pHalData->EEPROMRegulatory);
 
 }
-#else
-void
-hal_ReadTxPowerInfo8814A(
-	IN	PADAPTER		Adapter,
-	IN	u8				*PROMContent,
-	IN	BOOLEAN			AutoLoadFail
-)
-{
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(Adapter);
-	TxPowerInfo24G pwrInfo24G;
-	TxPowerInfo5G pwrInfo5G;
-
-	hal_load_txpwr_info(Adapter, &pwrInfo24G, &pwrInfo5G, PROMContent);
-
-	/* 2010/10/19 MH Add Regulator recognize for CU. */
-	if (!AutoLoadFail) {
-		struct registry_priv  *registry_par = &Adapter->registrypriv;
-
-
-		if (PROMContent[EEPROM_RF_BOARD_OPTION_8814] == 0xFF)
-			pHalData->EEPROMRegulatory = (EEPROM_DEFAULT_BOARD_OPTION & 0x7);	/* bit0~2 */
-		else
-			pHalData->EEPROMRegulatory = (PROMContent[EEPROM_RF_BOARD_OPTION_8814] & 0x7);	/* bit0~2 */
-
-	} else
-		pHalData->EEPROMRegulatory = 0;
-	RTW_INFO("EEPROMRegulatory = 0x%x\n", pHalData->EEPROMRegulatory);
-
-}
-#endif
 
 VOID
 hal_ReadBoardType8814A(
@@ -2019,7 +1964,7 @@ hal_ReadBoardType8814A(
 	{
 		pHalData->InterfaceSel = 0;
 	}
-	RTW_INFO("Board Type: 0x%2x\n", pHalData->InterfaceSel);
+	RT_TRACE(COMP_INIT, DBG_LOUD, ("Board Type: 0x%2x\n", pHalData->InterfaceSel));
 }
 
 VOID
@@ -4038,36 +3983,19 @@ void init_hal_spec_8814a(_adapter *adapter)
 {
 	struct hal_spec_t *hal_spec = GET_HAL_SPEC(adapter);
 
-	hal_spec->ic_name = "rtl8814a";
 	hal_spec->macid_num = MACID_NUM_8814A;
 	hal_spec->sec_cam_ent_num = SEC_CAM_ENT_NUM_8814A;
 	hal_spec->sec_cap = SEC_CAP_CHK_BMC;
-	hal_spec->rfpath_num_2g = 3;
-	hal_spec->rfpath_num_5g = 3;
-	hal_spec->max_tx_cnt = 4;
-	hal_spec->txgi_max = 63;
-	hal_spec->txgi_pdbm = 2;
 	hal_spec->tx_nss_num = 4;
 	hal_spec->rx_nss_num = 4;
 	hal_spec->band_cap = BAND_CAP_8814A;
 	hal_spec->bw_cap = BW_CAP_8814A;
-	hal_spec->port_num = 2;
-	hal_spec->proto_cap = PROTO_CAP_11B | PROTO_CAP_11G | PROTO_CAP_11N | PROTO_CAP_11AC;
 
 	hal_spec->wl_func = 0
 						| WL_FUNC_P2P
 						| WL_FUNC_MIRACAST
 						| WL_FUNC_TDLS
 						;
-
-	hal_spec->pg_txpwr_saddr = 0x10;
-	hal_spec->pg_txgi_diff_factor = 1;
-	rtw_macid_ctl_init_sleep_reg(adapter_to_macidctl(adapter)
-		, REG_MACID_SLEEP
-		, REG_MACID_SLEEP_1
-		, REG_MACID_SLEEP_2
-		, REG_MACID_SLEEP_3);
-
 }
 
 void InitDefaultValue8814A(PADAPTER padapter)
@@ -4089,7 +4017,10 @@ void InitDefaultValue8814A(PADAPTER padapter)
 	// init dm default value
 	pHalData->bChnlBWInitialized = _FALSE;
 	pHalData->bIQKInitialized = _FALSE;
-	
+	pHalData->odmpriv.rf_calibrate_info.tm_trigger = 0;//for IQK
+	pHalData->odmpriv.rf_calibrate_info.thermal_value_hp_index = 0;
+	for (i = 0; i < HP_THERMAL_NUM; i++)
+		pHalData->odmpriv.rf_calibrate_info.thermal_value_hp[i] = 0;
 	pHalData->EfuseHal.fakeEfuseBank = 0;
 	pHalData->EfuseHal.fakeEfuseUsedBytes = 0;
 	_rtw_memset(pHalData->EfuseHal.fakeEfuseContent, 0xFF, EFUSE_MAX_HW_SIZE);
@@ -5455,7 +5386,7 @@ static void hw_var_set_mlme_join(PADAPTER Adapter, u8 variable, u8* val)
 		
 	}
 
-	rtw_write16(Adapter, REG_RETRY_LIMIT, BIT_SRL(RetryLimit) | BIT_LRL(RetryLimit));
+	rtw_write16(Adapter, REG_RL, RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT);
 	
 #endif //CONFIG_CONCURRENT_MODE
 }
@@ -5549,7 +5480,7 @@ static void rtw_restore_all_sta_hwseq(_adapter *padapter)
 u8 SetHwReg8814A(PADAPTER padapter, u8 variable, u8 *pval)
 {
 	PHAL_DATA_TYPE pHalData; 
-	struct dm_struct* podmpriv;
+	struct PHY_DM_STRUCT* podmpriv;
 	u8 ret = _SUCCESS;
 	u8 val8;
 	u16 val16;
@@ -5743,8 +5674,8 @@ u8 SetHwReg8814A(PADAPTER padapter, u8 variable, u8 *pval)
 					}
 				}
 
-				val16 = BIT_SRL(RetryLimit) | BIT_LRL(RetryLimit);
-				rtw_write16(padapter, REG_RETRY_LIMIT, val16);
+				val16 = RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT;
+				rtw_write16(padapter, REG_RL, val16);
 			}
 #endif // !CONFIG_CONCURRENT_MODE
 
@@ -5904,7 +5835,7 @@ u8 SetHwReg8814A(PADAPTER padapter, u8 variable, u8 *pval)
 			{
 				u32	AMPDULen = *(u8*)pval;
 
-				RTW_INFO("SetHwReg8814AU(): HW_VAR_AMPDU_FACTOR %x\n" ,AMPDULen);
+				RT_TRACE( COMP_MLME, DBG_LOUD, ("SetHwReg8814AU(): HW_VAR_AMPDU_FACTOR %x\n" ,AMPDULen) );
 
 				if(AMPDULen < VHT_AGG_SIZE_256K)
 					AMPDULen = (0x2000 << (*((u8*)pval))) -1;
@@ -6031,8 +5962,8 @@ u8 SetHwReg8814A(PADAPTER padapter, u8 variable, u8 *pval)
 
 				retry_limit = 0x01;
 
-				val16 = BIT_SRL(retry_limit) | BIT_LRL(retry_limit);
-				rtw_write16(padapter, REG_RETRY_LIMIT, val16);
+				val16 = retry_limit << RETRY_LIMIT_SHORT_SHIFT | retry_limit << RETRY_LIMIT_LONG_SHIFT;
+				rtw_write16(padapter, REG_RL, val16);
 
 				while (rtw_get_passing_time_ms(start) < 2000
 					&& !RTW_CANNOT_RUN(padapter)
@@ -6080,8 +6011,8 @@ u8 SetHwReg8814A(PADAPTER padapter, u8 variable, u8 *pval)
 				}
 
 				retry_limit = RL_VAL_STA;
-				val16 = BIT_SRL(retry_limit) | BIT_LRL(retry_limit);
-				rtw_write16(padapter, REG_RETRY_LIMIT, val16);
+				val16 = retry_limit << RETRY_LIMIT_SHORT_SHIFT | retry_limit << RETRY_LIMIT_LONG_SHIFT;
+				rtw_write16(padapter, REG_RL, val16);
 			}
 
 			break;
@@ -6261,7 +6192,77 @@ u8 SetHwReg8814A(PADAPTER padapter, u8 variable, u8 *pval)
 #endif/*#if (BEAMFORMING_SUPPORT == 1) - for PHYDM TxBF*/
 #endif/*#ifdef CONFIG_BEAMFORMING*/
 
-		
+		case HW_VAR_MACID_SLEEP:
+		{
+			u32 reg_macid_sleep;
+			u8 bit_shift;
+			u8 id = *(u8*)pval;
+			u32 val32;
+
+			if (id < 32) {
+				reg_macid_sleep = REG_MACID_SLEEP;
+				bit_shift = id;
+			} else if (id < 64) {
+				reg_macid_sleep = REG_MACID_SLEEP_1;
+				bit_shift = id-32;
+			} else if (id < 96) {
+				reg_macid_sleep = REG_MACID_SLEEP_2;
+				bit_shift = id-64;
+			} else if (id < 128) {
+				reg_macid_sleep = REG_MACID_SLEEP_3;
+				bit_shift = id-96;
+			} else {
+				rtw_warn_on(1);
+				break;
+			}
+
+			val32 = rtw_read32(padapter, reg_macid_sleep);
+			RTW_INFO(FUNC_ADPT_FMT ": [HW_VAR_MACID_SLEEP] macid=%d, org reg_0x%03x=0x%08X\n",
+				FUNC_ADPT_ARG(padapter), id, reg_macid_sleep, val32);
+
+			if (val32 & BIT(bit_shift))
+				break;
+
+			val32 |= BIT(bit_shift);
+			rtw_write32(padapter, reg_macid_sleep, val32);
+		}
+			break;
+
+		case HW_VAR_MACID_WAKEUP:
+		{
+			u32 reg_macid_sleep;
+			u8 bit_shift;
+			u8 id = *(u8*)pval;
+			u32 val32;
+
+			if (id < 32) {
+				reg_macid_sleep = REG_MACID_SLEEP;
+				bit_shift = id;
+			} else if (id < 64) {
+				reg_macid_sleep = REG_MACID_SLEEP_1;
+				bit_shift = id-32;
+			} else if (id < 96) {
+				reg_macid_sleep = REG_MACID_SLEEP_2;
+				bit_shift = id-64;
+			} else if (id < 128) {
+				reg_macid_sleep = REG_MACID_SLEEP_3;
+				bit_shift = id-96;
+			} else {
+				rtw_warn_on(1);
+				break;
+			}
+
+			val32 = rtw_read32(padapter, reg_macid_sleep);
+			RTW_INFO(FUNC_ADPT_FMT ": [HW_VAR_MACID_WAKEUP] macid=%d, org reg_0x%03x=0x%08X\n",
+				FUNC_ADPT_ARG(padapter), id, reg_macid_sleep, val32);
+
+			if (!(val32 & BIT(bit_shift)))
+				break;
+
+			val32 &= ~BIT(bit_shift);
+			rtw_write32(padapter, reg_macid_sleep, val32);
+		}
+			break;
 #ifdef CONFIG_GPIO_WAKEUP
 		case HW_SET_GPIO_WL_CTRL:
 		{
@@ -6358,7 +6359,7 @@ void dump_mac_qinfo_8814a(void *sel, _adapter *adapter)
 void GetHwReg8814A(PADAPTER padapter, u8 variable, u8 *pval)
 {
 	PHAL_DATA_TYPE pHalData;
-	struct dm_struct* podmpriv;
+	struct PHY_DM_STRUCT* podmpriv;
 	u8 val8;
 	u16 val16;
 	u32 val32;
@@ -6618,6 +6619,9 @@ u8 GetHalDefVar8814A(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval)
 			*(u16*)pval = TX_PAGE_BOUNDARY_WOWLAN_8814A;
 			break;
 
+		case HAL_DEF_MACID_SLEEP:
+			*(u8*)pval = _TRUE; // support macid sleep
+			break;
 		case HAL_DEF_EFUSE_BYTES:
 			*((u16*)(pval)) = pHalData->EfuseUsedBytes;
 			break;
@@ -6711,8 +6715,7 @@ void rtl8814_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->set_tx_power_level_handler = &PHY_SetTxPowerLevel8814;
 	pHalFunc->get_tx_power_level_handler = &PHY_GetTxPowerLevel8814;
-	pHalFunc->set_tx_power_index_handler = &PHY_SetTxPowerIndex_8814A;
-	pHalFunc->get_tx_power_index_handler = &PHY_GetTxPowerIndex8814A;
+	pHalFunc->get_tx_power_index_handler = PHY_GetTxPowerIndex_8814A;
 
 	pHalFunc->hal_dm_watchdog = &rtl8814_HalDmWatchDog;
 
